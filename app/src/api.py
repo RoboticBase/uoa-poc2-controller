@@ -6,6 +6,11 @@ from flask.views import MethodView
 from src import const, orion
 from src.waypoint import Waypoint
 
+FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
+DELIVERY_ROBOT_SERVICEPATH = os.environ[const.DELIVERY_ROBOT_SERVICEPATH]
+DELIVERY_ROBOT_TYPE = os.environ[const.DELIVERY_ROBOT_TYPE]
+DELIVERY_ROBOT_01 = os.environ[const.DELIVERY_ROBOT_01]
+
 
 class ShipmentAPI(MethodView):
     NAME = 'shipmentapi'
@@ -21,14 +26,14 @@ class ShipmentAPI(MethodView):
         res = {
             'result': None,
         }
-        waypoints = Waypoint().calculate(shipment_list)
-        payload = orion.make_delivery_robot_command('navi', waypoints)
+        routes = Waypoint().get_routes(shipment_list)
+        payload = orion.make_delivery_robot_command('navi', routes[0], routes)
 
         orion.send_command(
-            os.environ[const.FIWARE_SERVICE],
-            os.environ[const.DELIVERY_ROBOT_SERVICEPATH],
-            os.environ[const.DELIVERY_ROBOT_TYPE],
-            os.environ[const.DELIVERY_ROBOT_01],
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            DELIVERY_ROBOT_01,
             payload
         )
 

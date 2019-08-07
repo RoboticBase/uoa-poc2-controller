@@ -9,4 +9,7 @@ DELIVERY_ROBOT_TYPE = 'DELIVERY_ROBOT_TYPE'
 DELIVERY_ROBOT_01 = 'DELIVERY_ROBOT_01'
 
 # constants
-ORION_BAAE_PATH = '/v2/entities/'
+ORION_BASE_PATH = '/v2/entities/'
+PLACE_TYPE = 'place'
+ROUTE_PLAN_TYPE = 'route_plan'
+VIA_SEPARATOR = '|'
