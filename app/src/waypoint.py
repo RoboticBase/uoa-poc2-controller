@@ -22,7 +22,7 @@ class Waypoint:
             DELIVERY_ROBOT_SERVICEPATH,
             const.PLACE_TYPE,
             f'name=={v}')['id'] for v in via_name_list]
-        via = const.VIA_SEPARATOR.join(via_list)
+        via = const.VIA_SEPARATOR.join(sorted(via_list))
 
         route_plan = orion.query_entity(
             FIWARE_SERVICE,
