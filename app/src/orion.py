@@ -33,19 +33,29 @@ def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, pay
     return result
 
 
-def make_delivery_robot_command(cmd, waypoints, routes):
+def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remaining_waypoints_list, current_routes=None):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
-    return {
+    payload = {
         'send_cmd': {
             'value': {
                 'time': t,
                 'cmd': cmd,
-                'waypoints': waypoints,
+                'waypoints': cmd_waypoints,
             },
         },
-        'current_routes': {
+        'navigating_waypoints': {
+            'type': 'object',
+            'value': navigating_waypoints,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'remaining_waypoints_list': {
             'type': 'array',
-            'value': routes,
+            'value': remaining_waypoints_list,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',
@@ -54,6 +64,18 @@ def make_delivery_robot_command(cmd, waypoints, routes):
             }
         }
     }
+    if current_routes:
+        payload['current_routes'] = {
+            'type': 'array',
+            'value': current_routes,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        }
+    return payload
 
 
 def query_entity(fiware_service, fiware_servicepath, entity_type, query):
@@ -83,6 +105,29 @@ def query_entity(fiware_service, fiware_servicepath, entity_type, query):
         })
 
     return result_json[0]
+
+
+def get_entity(fiware_service, fiware_servicepath, entity_type, entity_id):
+    headers = __make_headers(fiware_service, fiware_servicepath)
+    endpoint = f'{ORION_ENDPOINT}{const.ORION_BASE_PATH}{entity_id}'
+    params = {
+        'type': entity_type
+    }
+    result = requests.get(endpoint, headers=headers, params=params)
+    if not (200 <= result.status_code < 300):
+        code = result.status_code if result.status_code in (404, ) else 500
+        abort(code, {
+            'message': 'can not get an entity from orion',
+            'root_cause': result.text if hasattr(result, 'text') else ''
+        })
+    try:
+        result_json = result.json()
+    except json.decoder.JSONDecodeError as e:
+        abort(400, {
+            'message': 'can not parse result',
+            'root_cause': str(e)
+        })
+    return result_json
 
 
 def __make_headers(fiware_service, fiware_servicepath, require_contenttype=False):

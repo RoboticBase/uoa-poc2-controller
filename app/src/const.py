@@ -13,3 +13,9 @@ ORION_BASE_PATH = '/v2/entities/'
 PLACE_TYPE = 'place'
 ROUTE_PLAN_TYPE = 'route_plan'
 VIA_SEPARATOR = '|'
+
+# Robot mode
+MODE_INIT = ' '
+MODE_NAVI = 'navi'
+MODE_STANDBY = 'standby'
+MODE_ERROR = 'error'
