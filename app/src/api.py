@@ -50,5 +50,38 @@ class ShipmentAPI(CommonMixin, MethodView):
             DELIVERY_ROBOT_01,
             payload
         )
+        print(f'move robot to "{head["to"]}" (waypoints={head["waypoints"]}')
+
+        return jsonify({'result': 'success'}), 201
+
+
+class MoveNextAPI(CommonMixin, MethodView):
+    NAME = 'movenextapi'
+
+    def post(self):
+        self.check_mode()
+
+        remaining_waypoints_list = orion.get_entity(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            DELIVERY_ROBOT_01)['remaining_waypoints_list']['value']
+
+        if len(remaining_waypoints_list) == 0:
+            abort(423, {
+                'message': f'no remaining waypoints'
+            })
+
+        head, *tail = remaining_waypoints_list
+        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail)
+
+        orion.send_command(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            DELIVERY_ROBOT_01,
+            payload
+        )
+        print(f'move robot to "{head["to"]}" (waypoints={head["waypoints"]}')
 
         return jsonify({'result': 'success'}), 201

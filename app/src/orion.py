@@ -21,8 +21,6 @@ def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, pay
     endpoint = f'{ORION_ENDPOINT}{path}?type={entity_type}'
 
     result = requests.patch(endpoint, headers=headers, json=payload)
-    print(result)
-    print(result.text)
     if not (200 <= result.status_code < 300):
         code = result.status_code if result.status_code in (404, ) else 500
         abort(code, {
