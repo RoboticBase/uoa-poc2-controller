@@ -13,17 +13,24 @@ DELIVERY_ROBOT_01 = os.environ[const.DELIVERY_ROBOT_01]
 
 
 class CommonMixin:
-    def check_mode(self):
+    def check_mode(self, robot_id):
         current_mode = orion.get_entity(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
-            DELIVERY_ROBOT_01)['mode']['value']
+            robot_id)['mode']['value']
 
         if current_mode == const.MODE_NAVI:
             abort(423, {
                 'message': f'robot is navigating now'
             })
+
+    def get_available_robot(self):
+        # FIXME
+        self.check_mode(DELIVERY_ROBOT_01)
+        return {
+            'id': DELIVERY_ROBOT_01
+        }
 
 
 class ShipmentAPI(CommonMixin, MethodView):
@@ -37,7 +44,7 @@ class ShipmentAPI(CommonMixin, MethodView):
                 'message': f'invalid shipment_list, {shipment_list}',
             })
 
-        self.check_mode()
+        available_robot = self.get_available_robot()
 
         routes, waypoints_list = Waypoint().estimate_routes(shipment_list)
         head, *tail = waypoints_list
@@ -47,25 +54,25 @@ class ShipmentAPI(CommonMixin, MethodView):
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
-            DELIVERY_ROBOT_01,
+            available_robot['id'],
             payload
         )
-        print(f'move robot to "{head["to"]}" (waypoints={head["waypoints"]}')
+        print(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}')
 
-        return jsonify({'result': 'success'}), 201
+        return jsonify({'result': 'success', 'delivery_robot': available_robot}), 201
 
 
 class MoveNextAPI(CommonMixin, MethodView):
     NAME = 'movenextapi'
 
-    def post(self):
-        self.check_mode()
+    def patch(self, robot_id):
+        self.check_mode(robot_id)
 
         remaining_waypoints_list = orion.get_entity(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
-            DELIVERY_ROBOT_01)['remaining_waypoints_list']['value']
+            robot_id)['remaining_waypoints_list']['value']
 
         if len(remaining_waypoints_list) == 0:
             abort(423, {
@@ -79,27 +86,27 @@ class MoveNextAPI(CommonMixin, MethodView):
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
-            DELIVERY_ROBOT_01,
+            robot_id,
             payload
         )
-        print(f'move robot to "{head["to"]}" (waypoints={head["waypoints"]}')
+        print(f'move robot({robot_id}) to "{head["to"]}" (waypoints={head["waypoints"]}')
 
-        return jsonify({'result': 'success'}), 201
+        return jsonify({'result': 'success'}), 200
 
 
 class EmergencyAPI(MethodView):
     NAME = 'emergencyapi'
 
-    def post(self):
+    def patch(self, robot_id):
         payload = orion.make_emergency_command('stop')
 
         orion.send_command(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
-            DELIVERY_ROBOT_01,
+            robot_id,
             payload
         )
-        print(f'send emergency command ("stop") to robot')
+        print(f'send emergency command ("stop") to robot({robot_id})')
 
-        return jsonify({'result': 'success'}), 201
+        return jsonify({'result': 'success'}), 200
