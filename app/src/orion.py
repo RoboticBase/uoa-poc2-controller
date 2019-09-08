@@ -76,6 +76,19 @@ def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remain
     return payload
 
 
+def make_emergency_command(cmd):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_emg': {
+            'value': {
+                'time': t,
+                'emergency_cmd': cmd,
+            }
+        }
+    }
+    return payload
+
+
 def query_entity(fiware_service, fiware_servicepath, entity_type, query):
     headers = __make_headers(fiware_service, fiware_servicepath)
     endpoint = f'{ORION_ENDPOINT}{const.ORION_BASE_PATH}'

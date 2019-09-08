@@ -10,8 +10,10 @@ app.config.from_pyfile('config.cfg')
 
 shipment_api_view = api.ShipmentAPI.as_view(api.ShipmentAPI.NAME)
 movenext_api_view = api.MoveNextAPI.as_view(api.MoveNextAPI.NAME)
+emergency_api_view = api.EmergencyAPI.as_view(api.EmergencyAPI.NAME)
 app.add_url_rule('/api/v1/shipments/', view_func=shipment_api_view, methods=['POST', ])
 app.add_url_rule('/api/v1/movenext/', view_func=movenext_api_view, methods=['POST', ])
+app.add_url_rule('/api/v1/emergencies/', view_func=emergency_api_view, methods=['POST', ])
 
 app.register_blueprint(errors.app)
 

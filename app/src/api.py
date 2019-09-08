@@ -85,3 +85,21 @@ class MoveNextAPI(CommonMixin, MethodView):
         print(f'move robot to "{head["to"]}" (waypoints={head["waypoints"]}')
 
         return jsonify({'result': 'success'}), 201
+
+
+class EmergencyAPI(MethodView):
+    NAME = 'emergencyapi'
+
+    def post(self):
+        payload = orion.make_emergency_command('stop')
+
+        orion.send_command(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            DELIVERY_ROBOT_01,
+            payload
+        )
+        print(f'send emergency command ("stop") to robot')
+
+        return jsonify({'result': 'success'}), 201
