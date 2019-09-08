@@ -22,7 +22,8 @@ class CommonMixin:
 
         if current_mode == const.MODE_NAVI:
             abort(423, {
-                'message': f'robot is navigating now'
+                'message': f'robot({robot_id}) is navigating now',
+                'id': robot_id,
             })
 
     def get_available_robot(self):
@@ -75,8 +76,9 @@ class MoveNextAPI(CommonMixin, MethodView):
             robot_id)['remaining_waypoints_list']['value']
 
         if len(remaining_waypoints_list) == 0:
-            abort(423, {
-                'message': f'no remaining waypoints'
+            abort(412, {
+                'message': f'no remaining waypoints for robot({robot_id})',
+                'id': robot_id,
             })
 
         head, *tail = remaining_waypoints_list
