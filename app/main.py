@@ -2,10 +2,15 @@
 import os
 
 from flask import Flask
+from flask_cors import CORS
 
 from src import api, const, errors
 
+CORS_ORIGINS = os.environ.get(const.CORS_ORIGINS, None)
+
 app = Flask(__name__)
+if CORS_ORIGINS:
+    CORS(app, resources={r'/*': {'origins': CORS_ORIGINS}})
 app.config.from_pyfile('config.cfg')
 
 shipment_api_view = api.ShipmentAPI.as_view(api.ShipmentAPI.NAME)
