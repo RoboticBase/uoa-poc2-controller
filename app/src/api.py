@@ -1,4 +1,5 @@
 import os
+import json
 
 from flask import abort, jsonify, request
 from flask.views import MethodView
@@ -9,29 +10,44 @@ from src.waypoint import Waypoint
 FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
 DELIVERY_ROBOT_SERVICEPATH = os.environ[const.DELIVERY_ROBOT_SERVICEPATH]
 DELIVERY_ROBOT_TYPE = os.environ[const.DELIVERY_ROBOT_TYPE]
-DELIVERY_ROBOT_01 = os.environ[const.DELIVERY_ROBOT_01]
+DELIVERY_ROBOT_LIST = json.loads(os.environ[const.DELIVERY_ROBOT_LIST])
 
 
 class CommonMixin:
     def check_mode(self, robot_id):
+        if self.__check_navi(robot_id):
+            abort(423, {
+                'message': f'robot({robot_id}) is navigating now',
+                'id': robot_id,
+            })
+
+    def __check_navi(self, robot_id):
         current_mode = orion.get_entity(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
             robot_id)['mode']['value']
 
-        if current_mode == const.MODE_NAVI:
-            abort(423, {
-                'message': f'robot({robot_id}) is navigating now',
-                'id': robot_id,
-            })
+        return current_mode == const.MODE_NAVI
+
+    def __check_working(self, robot_id):
+        remaining_waypoints_list = orion.get_entity(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            robot_id)['remaining_waypoints_list']['value']
+
+        return isinstance(remaining_waypoints_list, list) and len(remaining_waypoints_list) != 0
 
     def get_available_robot(self):
-        # FIXME
-        self.check_mode(DELIVERY_ROBOT_01)
-        return {
-            'id': DELIVERY_ROBOT_01
-        }
+        for robot_id in DELIVERY_ROBOT_LIST:
+            if robot_id and not (self.__check_navi(robot_id) or self.__check_working(robot_id)):
+                return {
+                    'id': robot_id
+                }
+        abort(422, {
+            'message': f'no available robot',
+        })
 
 
 class ShipmentAPI(CommonMixin, MethodView):
