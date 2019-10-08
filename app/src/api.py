@@ -30,24 +30,43 @@ class CommonMixin:
 
         return current_mode == const.MODE_NAVI
 
-    def __check_working(self, robot_id):
-        remaining_waypoints_list = orion.get_entity(
+    def check_working(self, robot_id):
+        remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
+        return isinstance(remaining_waypoints_list, list) and len(remaining_waypoints_list) != 0
+
+    def get_remaining_waypoints_list(self, robot_id):
+        return orion.get_entity(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
             robot_id)['remaining_waypoints_list']['value']
 
-        return isinstance(remaining_waypoints_list, list) and len(remaining_waypoints_list) != 0
-
     def get_available_robot(self):
         for robot_id in DELIVERY_ROBOT_LIST:
-            if robot_id and not (self.__check_navi(robot_id) or self.__check_working(robot_id)):
+            if robot_id and not (self.__check_navi(robot_id) or self.check_working(robot_id)):
                 return {
                     'id': robot_id
                 }
         abort(422, {
             'message': f'no available robot',
         })
+
+    def get_state(self, robot_id):
+        is_navi = self.__check_navi(robot_id)
+        remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
+
+        if is_navi:
+            return const.STATE_MOVING
+        else:
+            if not isinstance(remaining_waypoints_list, list):
+                return const.STATE_STANDBY
+            else:
+                if len(remaining_waypoints_list) == 0:
+                    return const.STATE_STANDBY
+                if len(remaining_waypoints_list) == 1:
+                    return const.STATE_DELIVERING
+                else:
+                    return const.STATE_PICKING
 
 
 class ShipmentAPI(CommonMixin, MethodView):
@@ -79,19 +98,28 @@ class ShipmentAPI(CommonMixin, MethodView):
         return jsonify({'result': 'success', 'delivery_robot': available_robot}), 201
 
 
+class RobotStateAPI(CommonMixin, MethodView):
+    NAME = 'robotstateapi'
+
+    def get(self, robot_id):
+        current_state = self.get_state(robot_id)
+        to_id = orion.get_entity(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            robot_id)['navigating_waypoints']['value']['to']
+
+        return jsonify({'id': robot_id, 'state': current_state, 'to': to_id}), 200
+
+
 class MoveNextAPI(CommonMixin, MethodView):
     NAME = 'movenextapi'
 
     def patch(self, robot_id):
         self.check_mode(robot_id)
 
-        remaining_waypoints_list = orion.get_entity(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
-            robot_id)['remaining_waypoints_list']['value']
-
-        if len(remaining_waypoints_list) == 0:
+        remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
+        if not isinstance(remaining_waypoints_list, list) or len(remaining_waypoints_list) == 0:
             abort(412, {
                 'message': f'no remaining waypoints for robot({robot_id})',
                 'id': robot_id,

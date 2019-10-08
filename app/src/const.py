@@ -20,3 +20,9 @@ MODE_INIT = ' '
 MODE_NAVI = 'navi'
 MODE_STANDBY = 'standby'
 MODE_ERROR = 'error'
+
+# Robot state
+STATE_MOVING = 'moving'
+STATE_STANDBY = 'standby'
+STATE_PICKING = 'picking'
+STATE_DELIVERING = 'delivering'
