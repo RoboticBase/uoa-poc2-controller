@@ -2,16 +2,23 @@
 import os
 
 from flask import Flask
+from flask_cors import CORS
 
 from src import api, const, errors
 
+CORS_ORIGINS = os.environ.get(const.CORS_ORIGINS, None)
+
 app = Flask(__name__)
+if CORS_ORIGINS:
+    CORS(app, resources={r'/*': {'origins': CORS_ORIGINS}})
 app.config.from_pyfile('config.cfg')
 
 shipment_api_view = api.ShipmentAPI.as_view(api.ShipmentAPI.NAME)
 movenext_api_view = api.MoveNextAPI.as_view(api.MoveNextAPI.NAME)
+emergency_api_view = api.EmergencyAPI.as_view(api.EmergencyAPI.NAME)
 app.add_url_rule('/api/v1/shipments/', view_func=shipment_api_view, methods=['POST', ])
-app.add_url_rule('/api/v1/movenext/', view_func=movenext_api_view, methods=['POST', ])
+app.add_url_rule('/api/v1/robots/<robot_id>/nexts/', view_func=movenext_api_view, methods=['PATCH', ])
+app.add_url_rule('/api/v1/robots/<robot_id>/emergencies/', view_func=emergency_api_view, methods=['PATCH', ])
 
 app.register_blueprint(errors.app)
 

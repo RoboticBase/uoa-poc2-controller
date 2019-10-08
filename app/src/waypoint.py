@@ -36,7 +36,26 @@ class Waypoint:
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             const.PLACE_TYPE,
-            place)['position']['value'] for place in place_set}
+            place)['pose']['value'] for place in place_set}
 
-        waypoints_list = [{'to': r['to'], 'waypoints': [places[place_id] for place_id in r['via'] + [r['to']]]} for r in routes]
+        waypoints_list = []
+        for route in routes:
+            via = [{
+                'point': p['point'],
+                'angle_optional': {
+                    'valid': False,
+                    'angle': {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}
+                }
+            } for p in [places[place_id] for place_id in route['via']]]
+
+            to = [{
+                'point': p['point'],
+                'angle_optional': {
+                    'valid': True,
+                    'angle': p['angle']
+                }
+            } for p in [places[route['to']]]]
+
+            waypoints_list.append({'to': route['to'], 'waypoints': via + to})
+
         return routes, waypoints_list
