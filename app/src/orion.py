@@ -152,3 +152,37 @@ def __make_headers(fiware_service, fiware_servicepath, require_contenttype=False
         headers['Content-Type'] = 'application/json'
 
     return headers
+
+
+def make_robotui_command(next_state, next_mode, destination):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_state': {
+            'value': {
+                'time': t,
+                'state': next_state,
+                'destination': destination,
+            }
+        },
+        'current_state': {
+            'type': 'string',
+            'value': next_state,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'current_mode': {
+            'type': 'string',
+            'value': next_mode,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload

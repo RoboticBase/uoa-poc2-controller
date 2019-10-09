@@ -11,6 +11,9 @@ FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
 DELIVERY_ROBOT_SERVICEPATH = os.environ[const.DELIVERY_ROBOT_SERVICEPATH]
 DELIVERY_ROBOT_TYPE = os.environ[const.DELIVERY_ROBOT_TYPE]
 DELIVERY_ROBOT_LIST = json.loads(os.environ[const.DELIVERY_ROBOT_LIST])
+ROBOT_UI_SERVICEPATH = os.environ[const.ROBOT_UI_SERVICEPATH]
+ROBOT_UI_TYPE = os.environ[const.ROBOT_UI_TYPE]
+ID_TABLE = json.loads(os.environ[const.ID_TABLE])
 
 
 class CommonMixin:
@@ -54,7 +57,9 @@ class CommonMixin:
     def get_state(self, robot_id):
         is_navi = self.__check_navi(robot_id)
         remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
+        return self.calc_state(is_navi, remaining_waypoints_list)
 
+    def calc_state(self, is_navi, remaining_waypoints_list):
         if is_navi:
             return const.STATE_MOVING
         else:
@@ -67,6 +72,22 @@ class CommonMixin:
                     return const.STATE_DELIVERING
                 else:
                     return const.STATE_PICKING
+
+    def get_destination(self, robot_id):
+        navigating_waypoints = orion.get_entity(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            robot_id)['navigating_waypoints']['value']
+        if not isinstance(navigating_waypoints, dict):
+            return ''
+
+        destination = orion.get_entity(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            const.PLACE_TYPE,
+            navigating_waypoints['to'])
+        return destination['name']['value']
 
 
 class ShipmentAPI(CommonMixin, MethodView):
@@ -103,13 +124,9 @@ class RobotStateAPI(CommonMixin, MethodView):
 
     def get(self, robot_id):
         current_state = self.get_state(robot_id)
-        to_id = orion.get_entity(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
-            robot_id)['navigating_waypoints']['value']['to']
+        destination = self.get_destination(robot_id)
 
-        return jsonify({'id': robot_id, 'state': current_state, 'to': to_id}), 200
+        return jsonify({'id': robot_id, 'state': current_state, 'destination': destination}), 200
 
 
 class MoveNextAPI(CommonMixin, MethodView):
@@ -154,5 +171,38 @@ class EmergencyAPI(MethodView):
             payload
         )
         print(f'send emergency command ("stop") to robot({robot_id})')
+
+        return jsonify({'result': 'success'}), 200
+
+
+class RobotNotificationAPI(CommonMixin, MethodView):
+    NAME = 'robotnotificationapi'
+
+    def post(self):
+        for data in request.json['data']:
+            robot_id = data['id']
+            next_mode = data['mode']['value']
+
+            remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
+            next_state = self.calc_state(next_mode == const.MODE_NAVI, remaining_waypoints_list)
+
+            ui_id = ID_TABLE[robot_id]
+            ui = orion.get_entity(
+                FIWARE_SERVICE,
+                ROBOT_UI_SERVICEPATH,
+                ROBOT_UI_TYPE,
+                ui_id)
+
+            if ui['current_state']['value'] != next_state and ui['current_mode']['value'] != next_mode:
+                destination = self.get_destination(robot_id)
+                payload = orion.make_robotui_command(next_state, next_mode, destination)
+                orion.send_command(
+                    FIWARE_SERVICE,
+                    ROBOT_UI_SERVICEPATH,
+                    ROBOT_UI_TYPE,
+                    ui_id,
+                    payload)
+                print(f'publish new state to robot ui({ui_id}), '
+                      f'next_state={next_state}, next_mode={next_mode}, destination={destination}')
 
         return jsonify({'result': 'success'}), 200
