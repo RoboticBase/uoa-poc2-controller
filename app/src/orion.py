@@ -199,3 +199,94 @@ def make_robotui_command(next_state, next_mode, destination):
         },
     }
     return payload
+
+
+def make_token_lock_command(robot_id, waitings):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'is_locked': {
+            'type': 'boolean',
+            'value': True,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'lock_owner_id': {
+            'type': 'string',
+            'value': robot_id,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'waitings': {
+            'type': 'array',
+            'value': waitings,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+
+def make_token_wait_command(current_waitings, robot_id):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    waitings = current_waitings + [robot_id]
+    payload = {
+        'waitings': {
+            'type': 'array',
+            'value': waitings,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+def make_token_release_command():
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'is_locked': {
+            'type': 'boolean',
+            'value': False,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'lock_owner_id': {
+            'type': 'string',
+            'value': '',
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'waitings': {
+            'type': 'array',
+            'value': [],
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload

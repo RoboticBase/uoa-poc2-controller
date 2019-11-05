@@ -226,15 +226,17 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                 token = nws['action']['token']
                 waiting_route = nws['action']['waiting_route']
                 if func == 'lock':
-                    is_locked = Token.get(token).get_lock(robot_id)
-                    if is_locked:
+                    has_lock = Token.get(token).get_lock(robot_id)
+                    if has_lock:
                         self.move_next(robot_id)
                     else:
                         if waiting_route:
                             self._take_refuge(robot_id, waiting_route)
                 elif func == 'release':
-                    Token.get(token).release_lock(robot_id)
+                    new_owner = Token.get(token).release_lock(robot_id)
                     self.move_next(robot_id)
+                    if new_owner:
+                        self.move_next(new_owner)
 
     def _send_state(self, robot_id, next_mode):
         next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id)
