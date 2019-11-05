@@ -31,7 +31,8 @@ def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, pay
     return result
 
 
-def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remaining_waypoints_list, current_routes=None):
+def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints,
+                                remaining_waypoints_list=None, current_routes=None, order=None):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'send_cmd': {
@@ -51,7 +52,9 @@ def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remain
                 }
             }
         },
-        'remaining_waypoints_list': {
+    }
+    if remaining_waypoints_list is not None:
+        payload['remaining_waypoints_list'] = {
             'type': 'array',
             'value': remaining_waypoints_list,
             'metadata': {
@@ -61,11 +64,21 @@ def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remain
                 }
             }
         }
-    }
-    if current_routes:
+    if current_routes is not None:
         payload['current_routes'] = {
             'type': 'array',
             'value': current_routes,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        }
+    if order is not None:
+        payload['order'] = {
+            'type': 'object',
+            'value': order,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',

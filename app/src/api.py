@@ -6,6 +6,8 @@ from flask.views import MethodView
 
 from src import const, orion
 from src.waypoint import Waypoint
+from src.token import Token
+from src.utils import flatten
 
 FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
 DELIVERY_ROBOT_SERVICEPATH = os.environ[const.DELIVERY_ROBOT_SERVICEPATH]
@@ -17,6 +19,10 @@ ID_TABLE = json.loads(os.environ[const.ID_TABLE])
 
 
 class CommonMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._waypoint = Waypoint()
+
     def check_mode(self, robot_id):
         if self.__check_navi(robot_id):
             abort(423, {
@@ -56,83 +62,57 @@ class CommonMixin:
 
     def get_state(self, robot_id):
         is_navi = self.__check_navi(robot_id)
-        remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
-        return self.calc_state(is_navi, remaining_waypoints_list)
+        return self.calc_state(is_navi, robot_id)
 
-    def calc_state(self, is_navi, remaining_waypoints_list):
+    def calc_state(self, is_navi, robot_id):
         if is_navi:
             return const.STATE_MOVING
         else:
-            if not isinstance(remaining_waypoints_list, list):
+            robot_entity = orion.get_entity(
+                FIWARE_SERVICE,
+                DELIVERY_ROBOT_SERVICEPATH,
+                DELIVERY_ROBOT_TYPE,
+                robot_id)
+            navigating_waypoints = robot_entity['navigating_waypoints']['value']
+            order = robot_entity['order']['value']
+
+            if not isinstance(navigating_waypoints, dict) or not navigating_waypoints:
                 return const.STATE_STANDBY
             else:
-                if len(remaining_waypoints_list) == 0:
+                to = navigating_waypoints['to']
+                if to == order['source']:
                     return const.STATE_STANDBY
-                if len(remaining_waypoints_list) == 1:
+                elif to == order['destination']:
                     return const.STATE_DELIVERING
-                else:
+                elif to in order['via']:
                     return const.STATE_PICKING
+                else:
+                    return const.STATE_MOVING
 
-    def get_destination(self, robot_id):
+    def get_destination_id(self, robot_id):
         navigating_waypoints = orion.get_entity(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             DELIVERY_ROBOT_TYPE,
             robot_id)['navigating_waypoints']['value']
-        if not isinstance(navigating_waypoints, dict):
+        if not isinstance(navigating_waypoints, dict) or not navigating_waypoints:
+            return ''
+        else:
+            return navigating_waypoints['destination']
+
+    def get_destination_name(self, robot_id):
+        navigating_waypoints_to = self.get_destination_id(robot_id)
+        if navigating_waypoints_to == '':
             return ''
 
         destination = orion.get_entity(
             FIWARE_SERVICE,
             DELIVERY_ROBOT_SERVICEPATH,
             const.PLACE_TYPE,
-            navigating_waypoints['to'])
+            navigating_waypoints_to)
         return destination['name']['value']
 
-
-class ShipmentAPI(CommonMixin, MethodView):
-    NAME = 'shipmentapi'
-
-    def post(self):
-        shipment_list = request.json
-
-        if not isinstance(shipment_list, dict):
-            abort(400, {
-                'message': f'invalid shipment_list, {shipment_list}',
-            })
-
-        available_robot = self.get_available_robot()
-
-        routes, waypoints_list = Waypoint().estimate_routes(shipment_list)
-        head, *tail = waypoints_list
-        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail, routes)
-
-        orion.send_command(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
-            available_robot['id'],
-            payload
-        )
-        print(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}')
-
-        return jsonify({'result': 'success', 'delivery_robot': available_robot}), 201
-
-
-class RobotStateAPI(CommonMixin, MethodView):
-    NAME = 'robotstateapi'
-
-    def get(self, robot_id):
-        current_state = self.get_state(robot_id)
-        destination = self.get_destination(robot_id)
-
-        return jsonify({'id': robot_id, 'state': current_state, 'destination': destination}), 200
-
-
-class MoveNextAPI(CommonMixin, MethodView):
-    NAME = 'movenextapi'
-
-    def patch(self, robot_id):
+    def move_next(self, robot_id):
         self.check_mode(robot_id)
 
         remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
@@ -154,6 +134,51 @@ class MoveNextAPI(CommonMixin, MethodView):
         )
         print(f'move robot({robot_id}) to "{head["to"]}" (waypoints={head["waypoints"]}')
 
+
+class ShipmentAPI(CommonMixin, MethodView):
+    NAME = 'shipmentapi'
+
+    def post(self):
+        shipment_list = request.json
+
+        if not isinstance(shipment_list, dict):
+            abort(400, {
+                'message': f'invalid shipment_list, {shipment_list}',
+            })
+
+        available_robot = self.get_available_robot()
+
+        routes, waypoints_list, order = self._waypoint.estimate_routes(shipment_list, available_robot['id'])
+        head, *tail = waypoints_list
+
+        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail, routes, order)
+
+        orion.send_command(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            available_robot['id'],
+            payload
+        )
+        print(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, order={order}')
+
+        return jsonify({'result': 'success', 'delivery_robot': available_robot, 'order': order}), 201
+
+
+class RobotStateAPI(CommonMixin, MethodView):
+    NAME = 'robotstateapi'
+
+    def get(self, robot_id):
+        current_state = self.get_state(robot_id)
+        destination = self.get_destination_name(robot_id)
+        return jsonify({'id': robot_id, 'state': current_state, 'destination': destination}), 200
+
+
+class MoveNextAPI(CommonMixin, MethodView):
+    NAME = 'movenextapi'
+
+    def patch(self, robot_id):
+        self.move_next(robot_id)
         return jsonify({'result': 'success'}), 200
 
 
@@ -183,26 +208,78 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             robot_id = data['id']
             next_mode = data['mode']['value']
 
-            remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
-            next_state = self.calc_state(next_mode == const.MODE_NAVI, remaining_waypoints_list)
+            self._send_state(robot_id, next_mode)
+            self._action(robot_id, next_mode)
 
-            ui_id = ID_TABLE[robot_id]
-            ui = orion.get_entity(
+        return jsonify({'result': 'success'}), 200
+
+    def _action(self, robot_id, next_mode):
+        if next_mode == const.MODE_STANDBY:
+            nws = orion.get_entity(
+                FIWARE_SERVICE,
+                DELIVERY_ROBOT_SERVICEPATH,
+                DELIVERY_ROBOT_TYPE,
+                robot_id)['navigating_waypoints']['value']
+
+            if isinstance(nws, dict) and nws and 'action' in nws and 'func' in nws['action'] and nws['action']['func']:
+                func = nws['action']['func']
+                token = nws['action']['token']
+                waiting_route = nws['action']['waiting_route']
+                if func == 'lock':
+                    is_locked = Token.get(token).get_lock(robot_id)
+                    if is_locked:
+                        self.move_next(robot_id)
+                    else:
+                        if waiting_route:
+                            self._take_refuge(robot_id, waiting_route)
+                elif func == 'release':
+                    Token.get(token).release_lock(robot_id)
+                    self.move_next(robot_id)
+
+    def _send_state(self, robot_id, next_mode):
+        next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id)
+
+        ui_id = ID_TABLE[robot_id]
+        ui = orion.get_entity(
+            FIWARE_SERVICE,
+            ROBOT_UI_SERVICEPATH,
+            ROBOT_UI_TYPE,
+            ui_id)
+
+        if ui['current_state']['value'] != next_state and ui['current_mode']['value'] != next_mode:
+            destination = self.get_destination_name(robot_id)
+            payload = orion.make_robotui_command(next_state, next_mode, destination)
+            orion.send_command(
                 FIWARE_SERVICE,
                 ROBOT_UI_SERVICEPATH,
                 ROBOT_UI_TYPE,
-                ui_id)
+                ui_id,
+                payload)
+            print(f'publish new state to robot ui({ui_id}), '
+                  f'next_state={next_state}, next_mode={next_mode}, destination={destination}')
 
-            if ui['current_state']['value'] != next_state and ui['current_mode']['value'] != next_mode:
-                destination = self.get_destination(robot_id)
-                payload = orion.make_robotui_command(next_state, next_mode, destination)
-                orion.send_command(
-                    FIWARE_SERVICE,
-                    ROBOT_UI_SERVICEPATH,
-                    ROBOT_UI_TYPE,
-                    ui_id,
-                    payload)
-                print(f'publish new state to robot ui({ui_id}), '
-                      f'next_state={next_state}, next_mode={next_mode}, destination={destination}')
-
-        return jsonify({'result': 'success'}), 200
+    def _take_refuge(self, robot_id, waiting_route):
+        places = self._waypoint.get_places([flatten([waiting_route['via'], waiting_route['to']])])
+        waypoints = self._waypoint.get_waypoints(
+            [places[place_id] for place_id in waiting_route['via']],
+            [places[waiting_route['to']]]
+        )
+        navigating_waypoints = {
+            'to': waiting_route['to'],
+            'destination': waiting_route['to'],
+            'action': {
+                'func': '',
+                'token': '',
+                'waiting_route': {},
+            },
+            'waypoints': waypoints,
+        }
+        payload = orion.make_delivery_robot_command('navi', waypoints, navigating_waypoints)
+        orion.send_command(
+            FIWARE_SERVICE,
+            DELIVERY_ROBOT_SERVICEPATH,
+            DELIVERY_ROBOT_TYPE,
+            robot_id,
+            payload
+        )
+        print(f'take refuge a robot({robot_id}) in "{waiting_route["to"]}"')
