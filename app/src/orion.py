@@ -167,7 +167,23 @@ def __make_headers(fiware_service, fiware_servicepath, require_contenttype=False
     return headers
 
 
-def make_robotui_command(next_state, next_mode, destination):
+def make_updatemode_command(next_mode):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'current_mode': {
+            'type': 'string',
+            'value': next_mode,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+def make_robotui_command(next_state, destination):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'send_state': {
@@ -180,16 +196,6 @@ def make_robotui_command(next_state, next_mode, destination):
         'current_state': {
             'type': 'string',
             'value': next_state,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-        'current_mode': {
-            'type': 'string',
-            'value': next_mode,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',

@@ -40,14 +40,15 @@ class Token:
             print(f'lock token ({self._token}) by {robot_id}')
             return True
         else:
-            payload = orion.make_token_wait_command(waitings, robot_id)
-            orion.send_command(
-                FIWARE_SERVICE,
-                TOKEN_SERVICEPATH,
-                TOKEN_TYPE,
-                self._token,
-                payload)
-            print(f'wait token ({self._token}) by {robot_id}')
+            if robot_id not in waitings:
+                payload = orion.make_token_wait_command(waitings, robot_id)
+                orion.send_command(
+                    FIWARE_SERVICE,
+                    TOKEN_SERVICEPATH,
+                    TOKEN_TYPE,
+                    self._token,
+                    payload)
+                print(f'wait token ({self._token}) by {robot_id}')
             return False
 
     def release_lock(self, robot_id):

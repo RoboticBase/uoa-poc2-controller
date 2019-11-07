@@ -207,9 +207,29 @@ class RobotNotificationAPI(CommonMixin, MethodView):
         for data in request.json['data']:
             robot_id = data['id']
             next_mode = data['mode']['value']
+            next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id)
 
-            self._send_state(robot_id, next_mode)
-            self._action(robot_id, next_mode)
+            ui_id = ID_TABLE[robot_id]
+            ui = orion.get_entity(
+                FIWARE_SERVICE,
+                ROBOT_UI_SERVICEPATH,
+                ROBOT_UI_TYPE,
+                ui_id)
+            current_mode = ui['current_mode']['value']
+            current_state = ui['current_state']['value']
+
+            if next_mode != current_mode:
+                payload = orion.make_updatemode_command(next_mode)
+                orion.send_command(
+                    FIWARE_SERVICE,
+                    ROBOT_UI_SERVICEPATH,
+                    ROBOT_UI_TYPE,
+                    ui_id,
+                    payload)
+                print(f'update robot state, robot_id={robot_id}, current_mode={current_mode}, next_mode={next_mode}')
+
+                self._action(robot_id, next_mode)
+                self._send_state(robot_id, ui_id, next_state, current_state)
 
         return jsonify({'result': 'success'}), 200
 
@@ -238,19 +258,10 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     if new_owner:
                         self.move_next(new_owner)
 
-    def _send_state(self, robot_id, next_mode):
-        next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id)
-
-        ui_id = ID_TABLE[robot_id]
-        ui = orion.get_entity(
-            FIWARE_SERVICE,
-            ROBOT_UI_SERVICEPATH,
-            ROBOT_UI_TYPE,
-            ui_id)
-
-        if ui['current_state']['value'] != next_state and ui['current_mode']['value'] != next_mode:
+    def _send_state(self, robot_id, ui_id, next_state, current_state):
+        if next_state != current_state:
             destination = self.get_destination_name(robot_id)
-            payload = orion.make_robotui_command(next_state, next_mode, destination)
+            payload = orion.make_robotui_command(next_state, destination)
             orion.send_command(
                 FIWARE_SERVICE,
                 ROBOT_UI_SERVICEPATH,
@@ -258,7 +269,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                 ui_id,
                 payload)
             print(f'publish new state to robot ui({ui_id}), '
-                  f'next_state={next_state}, next_mode={next_mode}, destination={destination}')
+                  f'current_state={current_state}, next_state={next_state}, destination={destination}')
 
     def _take_refuge(self, robot_id, waiting_route):
         places = self._waypoint.get_places([flatten([waiting_route['via'], waiting_route['to']])])
@@ -268,7 +279,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
         )
         navigating_waypoints = {
             'to': waiting_route['to'],
-            'destination': waiting_route['to'],
+            'destination': self.get_destination_id(robot_id),
             'action': {
                 'func': '',
                 'token': '',
