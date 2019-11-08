@@ -65,18 +65,12 @@ class Waypoint:
     def get_waypoints(self, via_list, to_list):
         via = [{
             'point': p['point'],
-            'angle_optional': {
-                'valid': False,
-                'angle': {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}
-            }
+            'angle': None,
         } for p in via_list]
 
         to = [{
             'point': p['point'],
-            'angle_optional': {
-                'valid': True,
-                'angle': p['angle']
-            }
+            'angle': p['angle'],
         } for p in to_list]
 
         return via + to
