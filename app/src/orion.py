@@ -31,7 +31,8 @@ def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, pay
     return result
 
 
-def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remaining_waypoints_list, current_routes=None):
+def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints,
+                                remaining_waypoints_list=None, current_routes=None, order=None):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'send_cmd': {
@@ -51,7 +52,9 @@ def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remain
                 }
             }
         },
-        'remaining_waypoints_list': {
+    }
+    if remaining_waypoints_list is not None:
+        payload['remaining_waypoints_list'] = {
             'type': 'array',
             'value': remaining_waypoints_list,
             'metadata': {
@@ -61,11 +64,21 @@ def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remain
                 }
             }
         }
-    }
-    if current_routes:
+    if current_routes is not None:
         payload['current_routes'] = {
             'type': 'array',
             'value': current_routes,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        }
+    if order is not None:
+        payload['order'] = {
+            'type': 'object',
+            'value': order,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',
@@ -152,3 +165,134 @@ def __make_headers(fiware_service, fiware_servicepath, require_contenttype=False
         headers['Content-Type'] = 'application/json'
 
     return headers
+
+
+def make_updatemode_command(next_mode):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'current_mode': {
+            'type': 'string',
+            'value': next_mode,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+def make_robotui_command(next_state, destination):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_state': {
+            'value': {
+                'time': t,
+                'state': next_state,
+                'destination': destination,
+            }
+        },
+        'current_state': {
+            'type': 'string',
+            'value': next_state,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+
+def make_token_lock_command(robot_id, waitings):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'is_locked': {
+            'type': 'boolean',
+            'value': True,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'lock_owner_id': {
+            'type': 'string',
+            'value': robot_id,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'waitings': {
+            'type': 'array',
+            'value': waitings,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+
+def make_token_wait_command(current_waitings, robot_id):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    waitings = current_waitings + [robot_id]
+    payload = {
+        'waitings': {
+            'type': 'array',
+            'value': waitings,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
+
+def make_token_release_command():
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'is_locked': {
+            'type': 'boolean',
+            'value': False,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'lock_owner_id': {
+            'type': 'string',
+            'value': '',
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+        'waitings': {
+            'type': 'array',
+            'value': [],
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload
