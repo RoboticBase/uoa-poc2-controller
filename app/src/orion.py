@@ -183,16 +183,10 @@ def make_updatemode_command(next_mode):
     }
     return payload
 
-def make_robotui_command(next_state, destination):
+
+def make_updatestate_command(next_state):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
-        'send_state': {
-            'value': {
-                'time': t,
-                'state': next_state,
-                'destination': destination,
-            }
-        },
         'current_state': {
             'type': 'string',
             'value': next_state,
@@ -201,6 +195,19 @@ def make_robotui_command(next_state, destination):
                     'type': 'datetime',
                     'value': t,
                 }
+            }
+        },
+    }
+    return payload
+
+def make_robotui_command(next_state, destination):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_state': {
+            'value': {
+                'time': t,
+                'state': next_state,
+                'destination': destination,
             }
         },
     }
