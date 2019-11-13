@@ -31,3 +31,6 @@ STATE_MOVING = 'moving'
 STATE_STANDBY = 'standby'
 STATE_PICKING = 'picking'
 STATE_DELIVERING = 'delivering'
+
+# caller
+ORDERING_LIST = ['zaico-extensions',]

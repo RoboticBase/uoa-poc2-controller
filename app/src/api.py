@@ -7,6 +7,7 @@ from flask.views import MethodView
 from src import const, orion
 from src.waypoint import Waypoint
 from src.token import Token
+from src.caller import Caller
 from src.utils import flatten
 
 FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
@@ -84,7 +85,12 @@ class CommonMixin:
                 if to == order['source']:
                     return const.STATE_STANDBY
                 elif to == order['destination']:
-                    return const.STATE_DELIVERING
+                    try:
+                        caller = Caller.value_of(robot_entity['caller']['value'])
+                        return const.STATE_DELIVERING if caller == Caller.ORDERING else const.STATE_PICKING
+                    except ValueError as e:
+                        print(f'unkown caller (estimate "state" as const.STATE_PICKING), {e}')
+                        return const.STATE_PICKING
                 elif to in order['via']:
                     return const.STATE_PICKING
                 else:
@@ -148,11 +154,11 @@ class ShipmentAPI(CommonMixin, MethodView):
             })
 
         available_robot = self.get_available_robot()
-
+        caller = Caller.get(shipment_list)
         routes, waypoints_list, order = self._waypoint.estimate_routes(shipment_list, available_robot['id'])
         head, *tail = waypoints_list
 
-        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail, routes, order)
+        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail, routes, order, caller)
 
         orion.send_command(
             FIWARE_SERVICE,
@@ -161,9 +167,9 @@ class ShipmentAPI(CommonMixin, MethodView):
             available_robot['id'],
             payload
         )
-        print(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, order={order}')
+        print(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, order={order}, caller={caller}')
 
-        return jsonify({'result': 'success', 'delivery_robot': available_robot, 'order': order}), 201
+        return jsonify({'result': 'success', 'delivery_robot': available_robot, 'order': order, 'caller': caller.value}), 201
 
 
 class RobotStateAPI(CommonMixin, MethodView):
