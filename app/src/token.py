@@ -23,18 +23,31 @@ class Token:
 
     def __init__(self, token):
         self._token = token
+        self._entity = None
+        self.is_locked = False
+        self.lock_owner_id = ""
+        self.prev_owner_id = ""
+        self.waitings = []
 
-    def get_lock(self, robot_id):
-        token_entity = orion.get_entity(
+    def _renew_entity(self):
+        self._entity = orion.get_entity(
             FIWARE_SERVICE,
             TOKEN_SERVICEPATH,
             TOKEN_TYPE,
             self._token)
-        is_locked = token_entity['is_locked']['value']
-        waitings = token_entity['waitings']['value']
+        self.is_locked = self._entity['is_locked']['value']
+        self.lock_owner_id = self._entity['lock_owner_id']['value']
+        self.waitings = self._entity['waitings']['value']
 
-        if not is_locked:
-            payload = orion.make_token_lock_command(robot_id, [])
+    def get_lock(self, robot_id):
+        self._renew_entity()
+        if not self.is_locked:
+            self.is_locked = True
+            self.prev_owner_id = self.lock_owner_id
+            self.lock_owner_id = robot_id
+            self.waitings = []
+
+            payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
             orion.send_command(
                 FIWARE_SERVICE,
                 TOKEN_SERVICEPATH,
@@ -44,8 +57,10 @@ class Token:
             logger.info(f'lock token ({self._token}) by {robot_id}')
             return True
         else:
-            if robot_id not in waitings:
-                payload = orion.make_token_wait_command(waitings, robot_id)
+            if robot_id not in self.waitings:
+                self.waitings = self.waitings + [robot_id]
+
+                payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
                 orion.send_command(
                     FIWARE_SERVICE,
                     TOKEN_SERVICEPATH,
@@ -56,15 +71,14 @@ class Token:
             return False
 
     def release_lock(self, robot_id):
-        token_entity = orion.get_entity(
-            FIWARE_SERVICE,
-            TOKEN_SERVICEPATH,
-            TOKEN_TYPE,
-            self._token)
+        self._renew_entity()
+        if len(self.waitings) == 0:
+            self.is_locked = False
+            self.prev_owner_id = self.lock_owner_id
+            self.lock_owner_id = ''
+            self.waitings = []
 
-        waitings = token_entity['waitings']['value']
-        if len(waitings) == 0:
-            payload = orion.make_token_release_command()
+            payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
             orion.send_command(
                 FIWARE_SERVICE,
                 TOKEN_SERVICEPATH,
@@ -74,8 +88,13 @@ class Token:
             logger.info(f'release token ({self._token}) by {robot_id}')
             return None
         else:
-            new_owner, *new_waitings = waitings
-            payload = orion.make_token_lock_command(new_owner, new_waitings)
+            new_owner, *new_waitings = self.waitings
+            self.is_locked = True
+            self.prev_owner_id = self.lock_owner_id
+            self.lock_owner_id = new_owner
+            self.waitings = new_waitings
+
+            payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
             orion.send_command(
                 FIWARE_SERVICE,
                 TOKEN_SERVICEPATH,

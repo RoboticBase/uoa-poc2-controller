@@ -231,18 +231,20 @@ def make_robotui_sendtokeninfo_command(token, mode):
             'value': {
                 'time': t,
                 'token': str(token),
-                'mode': str(mode)
+                'mode': str(mode),
+                'lock_owner_id': token.lock_owner_id,
+                'prev_owner_id': token.prev_owner_id,
             }
         },
     }
     return payload
 
-def make_token_lock_command(robot_id, waitings):
+def make_token_info_command(is_locked, robot_id, waitings):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'is_locked': {
             'type': 'boolean',
-            'value': True,
+            'value': is_locked,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',
@@ -263,60 +265,6 @@ def make_token_lock_command(robot_id, waitings):
         'waitings': {
             'type': 'array',
             'value': waitings,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-    }
-    return payload
-
-
-def make_token_wait_command(current_waitings, robot_id):
-    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
-    waitings = current_waitings + [robot_id]
-    payload = {
-        'waitings': {
-            'type': 'array',
-            'value': waitings,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-    }
-    return payload
-
-def make_token_release_command():
-    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
-    payload = {
-        'is_locked': {
-            'type': 'boolean',
-            'value': False,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-        'lock_owner_id': {
-            'type': 'string',
-            'value': '',
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-        'waitings': {
-            'type': 'array',
-            'value': [],
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',

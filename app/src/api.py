@@ -304,7 +304,8 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             ROBOT_UI_TYPE,
             ui_id,
             payload)
-        logger.info(f'publish new token_info to robot ui({ui_id}), token={token}, mode={mode}')
+        logger.info(f'publish new token_info to robot ui({ui_id}), token={token}, mode={mode}, '
+                    f'lock_owner_id={token.lock_owner_id}, prev_owner_id={token.prev_owner_id}')
 
     def _take_refuge(self, robot_id, waiting_route):
         places = self._waypoint.get_places([flatten([waiting_route['via'], waiting_route['to']])])
