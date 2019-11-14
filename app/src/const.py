@@ -1,4 +1,5 @@
 # environment variable name
+LOG_LEVEL = 'LOG_LEVEL'
 LISTEN_PORT = 'LISTEN_PORT'
 TIMEZONE = 'TIMEZONE'
 ORION_ENDPOINT = 'ORION_ENDPOINT'
@@ -31,3 +32,7 @@ STATE_MOVING = 'moving'
 STATE_STANDBY = 'standby'
 STATE_PICKING = 'picking'
 STATE_DELIVERING = 'delivering'
+
+# logging
+LOGGING_JSON = 'logging.json'
+TARGET_HANDLERS = ['console', ]
