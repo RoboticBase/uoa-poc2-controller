@@ -1,4 +1,5 @@
 # environment variable name
+LOG_LEVEL = 'LOG_LEVEL'
 LISTEN_PORT = 'LISTEN_PORT'
 TIMEZONE = 'TIMEZONE'
 ORION_ENDPOINT = 'ORION_ENDPOINT'
@@ -34,3 +35,8 @@ STATE_DELIVERING = 'delivering'
 
 # caller
 ORDERING_LIST = ['zaico-extensions',]
+
+# logging
+LOGGING_JSON = 'logging.json'
+TARGET_HANDLERS = ['console', ]
+>>>>>>> feature/logging
