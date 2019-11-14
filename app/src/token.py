@@ -1,5 +1,6 @@
 import os
 import json
+from enum import Enum
 
 from src import const, orion
 
@@ -80,3 +81,16 @@ class Token:
                 payload)
             print(f'switch token ({self._token}) from {robot_id} to {new_owner}')
             return new_owner
+
+    def __str__(self):
+        return self._token
+
+
+class TokenMode(Enum):
+    LOCK = 'lock'
+    RELEASE = 'release'
+    SUSPEND = 'suspend'
+    RESUME = 'resume'
+
+    def __str__(self):
+        return self.value

@@ -211,7 +211,7 @@ def make_updatestate_command(next_state):
     }
     return payload
 
-def make_robotui_command(next_state, destination):
+def make_robotui_sendstate_command(next_state, destination):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'send_state': {
@@ -224,6 +224,18 @@ def make_robotui_command(next_state, destination):
     }
     return payload
 
+def make_robotui_sendtokeninfo_command(token, mode):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_token_info': {
+            'value': {
+                'time': t,
+                'token': str(token),
+                'mode': str(mode)
+            }
+        },
+    }
+    return payload
 
 def make_token_lock_command(robot_id, waitings):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
