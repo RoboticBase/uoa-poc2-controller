@@ -39,4 +39,3 @@ ORDERING_LIST = ['zaico-extensions',]
 # logging
 LOGGING_JSON = 'logging.json'
 TARGET_HANDLERS = ['console', ]
->>>>>>> feature/logging
