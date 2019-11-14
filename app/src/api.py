@@ -1,5 +1,6 @@
 import os
 import json
+from logging import getLogger
 
 from flask import abort, jsonify, request
 from flask.views import MethodView
@@ -16,6 +17,8 @@ DELIVERY_ROBOT_LIST = json.loads(os.environ[const.DELIVERY_ROBOT_LIST])
 ROBOT_UI_SERVICEPATH = os.environ[const.ROBOT_UI_SERVICEPATH]
 ROBOT_UI_TYPE = os.environ[const.ROBOT_UI_TYPE]
 ID_TABLE = json.loads(os.environ[const.ID_TABLE])
+
+logger = getLogger(__name__)
 
 
 class CommonMixin:
@@ -132,13 +135,14 @@ class CommonMixin:
             robot_id,
             payload
         )
-        print(f'move robot({robot_id}) to "{head["to"]}" (waypoints={head["waypoints"]}')
+        logger.info(f'move robot({robot_id}) to "{head["to"]}" (waypoints={head["waypoints"]}')
 
 
 class ShipmentAPI(CommonMixin, MethodView):
     NAME = 'shipmentapi'
 
     def post(self):
+        logger.debug(f'ShipmentAPI.post')
         shipment_list = request.json
 
         if not isinstance(shipment_list, dict):
@@ -160,7 +164,7 @@ class ShipmentAPI(CommonMixin, MethodView):
             available_robot['id'],
             payload
         )
-        print(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, order={order}')
+        logger.info(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, order={order}')
 
         return jsonify({'result': 'success', 'delivery_robot': available_robot, 'order': order}), 201
 
@@ -169,6 +173,7 @@ class RobotStateAPI(CommonMixin, MethodView):
     NAME = 'robotstateapi'
 
     def get(self, robot_id):
+        logger.debug(f'RobotStateAPI.get, robot_id={robot_id}')
         current_state = self.get_state(robot_id)
         destination = self.get_destination_name(robot_id)
         return jsonify({'id': robot_id, 'state': current_state, 'destination': destination}), 200
@@ -178,6 +183,7 @@ class MoveNextAPI(CommonMixin, MethodView):
     NAME = 'movenextapi'
 
     def patch(self, robot_id):
+        logger.debug(f'MoveNextAPI.patch, robot_id={robot_id}')
         self.move_next(robot_id)
         return jsonify({'result': 'success'}), 200
 
@@ -186,6 +192,7 @@ class EmergencyAPI(MethodView):
     NAME = 'emergencyapi'
 
     def patch(self, robot_id):
+        logger.debug(f'EmergencyAPI.patch, robot_id={robot_id}')
         payload = orion.make_emergency_command('stop')
 
         orion.send_command(
@@ -195,7 +202,7 @@ class EmergencyAPI(MethodView):
             robot_id,
             payload
         )
-        print(f'send emergency command ("stop") to robot({robot_id})')
+        logger.info(f'send emergency command ("stop") to robot({robot_id})')
 
         return jsonify({'result': 'success'}), 200
 
@@ -204,6 +211,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
     NAME = 'robotnotificationapi'
 
     def post(self):
+        logger.debug(f'RobotNotificationAPI.post')
         for data in request.json['data']:
             robot_id = data['id']
             next_mode = data['mode']['value']
@@ -226,7 +234,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     ROBOT_UI_TYPE,
                     ui_id,
                     payload)
-                print(f'update robot state, robot_id={robot_id}, current_mode={current_mode}, next_mode={next_mode}')
+                logger.info(f'update robot state, robot_id={robot_id}, current_mode={current_mode}, next_mode={next_mode}')
 
                 self._action(robot_id, next_mode)
                 self._send_state(robot_id, ui_id, next_state, current_state)
@@ -268,8 +276,8 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                 ROBOT_UI_TYPE,
                 ui_id,
                 payload)
-            print(f'publish new state to robot ui({ui_id}), '
-                  f'current_state={current_state}, next_state={next_state}, destination={destination}')
+            logger.info(f'publish new state to robot ui({ui_id}), '
+                        f'current_state={current_state}, next_state={next_state}, destination={destination}')
 
     def _take_refuge(self, robot_id, waiting_route):
         places = self._waypoint.get_places([flatten([waiting_route['via'], waiting_route['to']])])
@@ -295,4 +303,4 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             robot_id,
             payload
         )
-        print(f'take refuge a robot({robot_id}) in "{waiting_route["to"]}"')
+        logger.info(f'take refuge a robot({robot_id}) in "{waiting_route["to"]}"')

@@ -1,11 +1,14 @@
 import os
 import json
+from logging import getLogger
 
 from src import const, orion
 
 FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
 TOKEN_SERVICEPATH = os.environ[const.TOKEN_SERVICEPATH]
 TOKEN_TYPE = os.environ[const.TOKEN_TYPE]
+
+logger = getLogger(__name__)
 
 
 class Token:
@@ -37,7 +40,7 @@ class Token:
                 TOKEN_TYPE,
                 self._token,
                 payload)
-            print(f'lock token ({self._token}) by {robot_id}')
+            logger.info(f'lock token ({self._token}) by {robot_id}')
             return True
         else:
             if robot_id not in waitings:
@@ -48,7 +51,7 @@ class Token:
                     TOKEN_TYPE,
                     self._token,
                     payload)
-                print(f'wait token ({self._token}) by {robot_id}')
+                logger.info(f'wait token ({self._token}) by {robot_id}')
             return False
 
     def release_lock(self, robot_id):
@@ -67,7 +70,7 @@ class Token:
                 TOKEN_TYPE,
                 self._token,
                 payload)
-            print(f'release token ({self._token}) by {robot_id}')
+            logger.info(f'release token ({self._token}) by {robot_id}')
             return None
         else:
             new_owner, *new_waitings = waitings
@@ -78,5 +81,5 @@ class Token:
                 TOKEN_TYPE,
                 self._token,
                 payload)
-            print(f'switch token ({self._token}) from {robot_id} to {new_owner}')
+            logger.info(f'switch token ({self._token}) from {robot_id} to {new_owner}')
             return new_owner
