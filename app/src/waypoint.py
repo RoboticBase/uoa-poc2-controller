@@ -1,4 +1,5 @@
 import os
+from logging import getLogger
 
 from src import const, orion
 from src.utils import flatten
@@ -6,10 +7,12 @@ from src.utils import flatten
 FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
 DELIVERY_ROBOT_SERVICEPATH = os.environ[const.DELIVERY_ROBOT_SERVICEPATH]
 
+logger = getLogger(__name__)
+
 
 class Waypoint:
     def estimate_routes(self, shipment_list, robot_id):
-        print(f'shipment_list = {shipment_list}')
+        logger.info(f'shipment_list = {shipment_list}')
 
         destination = orion.query_entity(
             FIWARE_SERVICE,
