@@ -28,7 +28,7 @@ class EtcdLock:
             msg = f'can not acquire etcd.lock for {self.name}'
             logger.warn(msg)
             raise EtcdLockDoesNotAcquired(msg)
-        logger.debug(f'aquire etcd.lock for {self.name}')
+        logger.debug(f'acquire etcd.lock for {self.name}')
         return self
 
     def __exit__(self, ex_type, ex_value, trace):
