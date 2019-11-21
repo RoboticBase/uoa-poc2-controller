@@ -54,11 +54,12 @@ class Waypoint:
 
     def get_places(self, place_id_list):
         place_set = set(flatten(place_id_list))
-        places = {place: orion.get_entity(
+        raw_places = {place['id']: place for place in orion.get_entities(
             const.FIWARE_SERVICE,
             const.DELIVERY_ROBOT_SERVICEPATH,
-            const.PLACE_TYPE,
-            place)['pose']['value'] for place in place_set}
+            const.PLACE_TYPE)}
+
+        places = {place: raw_places[place]['pose']['value'] for place in place_set}
         return places
 
     def get_waypoints(self, via_list, to_list):

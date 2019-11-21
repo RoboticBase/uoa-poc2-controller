@@ -116,6 +116,7 @@ def query_entity(fiware_service, fiware_servicepath, entity_type, query):
     endpoint = f'{const.ORION_ENDPOINT}{const.ORION_BASE_PATH}'
     params = {
         'type': entity_type,
+        'limit': const.ORION_LIST_NUM_LIMIT,
         'q': query,
     }
     result = requests.get(endpoint, headers=headers, params=params)
@@ -138,6 +139,30 @@ def query_entity(fiware_service, fiware_servicepath, entity_type, query):
         })
 
     return result_json[0]
+
+
+def get_entities(fiware_service, fiware_servicepath, entity_type):
+    headers = __make_headers(fiware_service, fiware_servicepath)
+    endpoint = f'{const.ORION_ENDPOINT}{const.ORION_BASE_PATH}'
+    params = {
+        'type': entity_type,
+        'limit': const.ORION_LIST_NUM_LIMIT,
+    }
+    result = requests.get(endpoint, headers=headers, params=params)
+    if not (200 <= result.status_code < 300):
+        code = result.status_code if result.status_code in (404, ) else 500
+        abort(code, {
+            'message': 'can not get entities from orion',
+            'root_cause': result.text if hasattr(result, 'text') else ''
+        })
+    try:
+        result_json = result.json()
+    except json.decoder.JSONDecodeError as e:
+        abort(400, {
+            'message': 'can not parse result',
+            'root_cause': str(e)
+        })
+    return result_json
 
 
 def get_entity(fiware_service, fiware_servicepath, entity_type, entity_id):

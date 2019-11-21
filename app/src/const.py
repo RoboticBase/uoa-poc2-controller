@@ -28,6 +28,7 @@ ORION_BASE_PATH = '/v2/entities/'
 PLACE_TYPE = 'place'
 ROUTE_PLAN_TYPE = 'route_plan'
 VIA_SEPARATOR = '|'
+ORION_LIST_NUM_LIMIT = 1000
 
 # Robot mode
 MODE_INIT = ' '
