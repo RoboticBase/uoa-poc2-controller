@@ -39,3 +39,7 @@ ORDERING_LIST = ['zaico-extensions',]
 # logging
 LOGGING_JSON = 'logging.json'
 TARGET_HANDLERS = ['console', ]
+
+# move_next
+WAIT_MSEC = 500
+WAIT_MAX_NUM = 10

@@ -1,5 +1,6 @@
 import os
 import json
+from time import sleep
 from logging import getLogger
 
 from flask import abort, jsonify, request
@@ -122,8 +123,24 @@ class CommonMixin:
             navigating_waypoints_to)
         return destination['name']['value']
 
-    def move_next(self, robot_id):
-        self.check_mode(robot_id)
+    def move_next(self, robot_id, wait=False):
+        if not wait:
+            self.check_mode(robot_id)
+        else:
+            cnt = 0
+            while cnt < const.WAIT_MAX_NUM:
+                cnt += 1
+                logger.debug(f'waiting for mode == STANDBY ({robot_id}), cnt = {cnt}')
+                if not self.__check_navi(robot_id):
+                    break
+                sleep(const.WAIT_MSEC / 1000.0)
+            else:
+                abort(423, {
+                    'message': f'move_next timeout robot({robot_id})',
+                    'id': robot_id,
+                    'wait_msec': const.WAIT_MSEC,
+                    'wait_count': cnt,
+                })
 
         remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
         if not isinstance(remaining_waypoints_list, list) or len(remaining_waypoints_list) == 0:
@@ -260,7 +277,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                 if func == 'lock':
                     has_lock = token.get_lock(robot_id)
                     if has_lock:
-                        self.move_next(robot_id)
+                        self.move_next(robot_id, wait=True)
                         self._send_token_info(ui_id, token, TokenMode.LOCK)
                     else:
                         if waiting_route:
@@ -268,10 +285,10 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                         self._send_token_info(ui_id, token, TokenMode.SUSPEND)
                 elif func == 'release':
                     new_owner_id = token.release_lock(robot_id)
-                    self.move_next(robot_id)
+                    self.move_next(robot_id, wait=True)
                     self._send_token_info(ui_id, token, TokenMode.RELEASE)
                     if new_owner_id:
-                        self.move_next(new_owner_id)
+                        self.move_next(new_owner_id, wait=True)
                         self._send_token_info(ID_TABLE[new_owner_id], token, TokenMode.RESUME)
                         self._send_token_info(ID_TABLE[new_owner_id], token, TokenMode.LOCK)
 
