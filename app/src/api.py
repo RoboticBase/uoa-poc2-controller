@@ -127,17 +127,17 @@ class CommonMixin:
             self.check_mode(robot_id)
         else:
             cnt = 0
-            while cnt < const.WAIT_MAX_NUM:
+            while cnt < const.MOVENEXT_WAIT_MAX_NUM:
                 cnt += 1
                 logger.debug(f'waiting for mode == STANDBY ({robot_id}), cnt = {cnt}')
                 if not self.__check_navi(robot_id):
                     break
-                sleep(const.WAIT_MSEC / 1000.0)
+                sleep(const.MOVENEXT_WAIT_MSEC / 1000.0)
             else:
                 abort(423, {
                     'message': f'move_next timeout robot({robot_id})',
                     'id': robot_id,
-                    'wait_msec': const.WAIT_MSEC,
+                    'wait_msec': const.MOVENEXT_WAIT_MSEC,
                     'wait_count': cnt,
                 })
 
@@ -252,7 +252,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
     @classmethod
     def throttling_msec(cls):
         if cls._throttling_msec is None:
-            cls._throttling_msec = datetime.timedelta(milliseconds=const.THROTTLING_MSEC)
+            cls._throttling_msec = datetime.timedelta(milliseconds=const.NOTIFICATION_THROTTLING_MSEC)
         return cls._throttling_msec
 
     def post(self):

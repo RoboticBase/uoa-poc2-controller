@@ -22,6 +22,9 @@ ETCD_PORT = int(os.environ['ETCD_PORT'])
 ETCD_LOCK_TTL_SEC = int(os.environ.get('ETCD_LOCK_TTL_SEC', '60'))
 SHIPMENTAPI_LOCK_TIMEOUT_SEC = int(os.environ.get('SHIPMENTAPI_LOCK_TIMEOUT_SEC', '10'))
 MOVENEXTAPI_LOCK_TIMEOUT_SEC = int(os.environ.get('MOVENEXTAPI_LOCK_TIMEOUT_SEC', '10'))
+MOVENEXT_WAIT_MSEC = int(os.environ.get('MOVENEXT_WAIT_MSEC', '200'))
+MOVENEXT_WAIT_MAX_NUM = int(os.environ.get('MOVENEXT_WAIT_MAX_NUM', '25'))
+NOTIFICATION_THROTTLING_MSEC = int(os.environ.get('NOTIFICATION_THROTTLING_MSEC', '500'))
 
 # constants
 ORION_BASE_PATH = '/v2/entities/'
@@ -48,13 +51,6 @@ ORDERING_LIST = ['zaico-extensions', ]
 # logging
 LOGGING_JSON = 'logging.json'
 TARGET_HANDLERS = ['console', ]
-
-# move_next
-WAIT_MSEC = 500
-WAIT_MAX_NUM = 10
-
-# notification
-THROTTLING_MSEC = 500
 
 # etcd_lock
 DEFAULT_LOCK_TIMEOUT_SEC = 10
