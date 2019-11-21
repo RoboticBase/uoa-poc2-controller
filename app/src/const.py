@@ -53,4 +53,4 @@ LOGGING_JSON = 'logging.json'
 TARGET_HANDLERS = ['console', ]
 
 # etcd_lock
-DEFAULT_LOCK_TIMEOUT_SEC = 10
+DEFAULT_LOCK_TIMEOUT_SEC = 600

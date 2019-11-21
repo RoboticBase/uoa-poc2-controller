@@ -335,9 +335,13 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     self.move_next(robot_id, wait=True)
                     self._send_token_info(ui_id, token, TokenMode.RELEASE)
                     if new_owner_id:
-                        self.move_next(new_owner_id, wait=True)
-                        self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
-                        self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
+                        try:
+                            with EtcdLock(new_owner_id):
+                                self.move_next(new_owner_id, wait=True)
+                            self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
+                            self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
+                        except EtcdLockDoesNotAcquired as e:
+                            logger.error(f'lock error of new_owner_id ({new_owner_id}), {str(e)}')
 
     def _send_state(self, robot_id, ui_id, next_state, current_state):
         if next_state != current_state:
