@@ -32,7 +32,7 @@ def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, pay
 
 
 def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints,
-                                remaining_waypoints_list=None, current_routes=None, order=None):
+                                remaining_waypoints_list=None, current_routes=None, order=None, caller=None):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'send_cmd': {
@@ -79,6 +79,17 @@ def make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints,
         payload['order'] = {
             'type': 'object',
             'value': order,
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        }
+    if caller is not None:
+        payload['caller'] = {
+            'type': 'string',
+            'value': caller.value,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',
@@ -183,16 +194,10 @@ def make_updatemode_command(next_mode):
     }
     return payload
 
-def make_robotui_command(next_state, destination):
+
+def make_updatestate_command(next_state):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
-        'send_state': {
-            'value': {
-                'time': t,
-                'state': next_state,
-                'destination': destination,
-            }
-        },
         'current_state': {
             'type': 'string',
             'value': next_state,
@@ -206,13 +211,40 @@ def make_robotui_command(next_state, destination):
     }
     return payload
 
+def make_robotui_sendstate_command(next_state, destination):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_state': {
+            'value': {
+                'time': t,
+                'state': next_state,
+                'destination': destination,
+            }
+        },
+    }
+    return payload
 
-def make_token_lock_command(robot_id, waitings):
+def make_robotui_sendtokeninfo_command(token, mode):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'send_token_info': {
+            'value': {
+                'time': t,
+                'token': str(token),
+                'mode': str(mode),
+                'lock_owner_id': token.lock_owner_id,
+                'prev_owner_id': token.prev_owner_id,
+            }
+        },
+    }
+    return payload
+
+def make_token_info_command(is_locked, robot_id, waitings):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
         'is_locked': {
             'type': 'boolean',
-            'value': True,
+            'value': is_locked,
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',
@@ -233,60 +265,6 @@ def make_token_lock_command(robot_id, waitings):
         'waitings': {
             'type': 'array',
             'value': waitings,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-    }
-    return payload
-
-
-def make_token_wait_command(current_waitings, robot_id):
-    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
-    waitings = current_waitings + [robot_id]
-    payload = {
-        'waitings': {
-            'type': 'array',
-            'value': waitings,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-    }
-    return payload
-
-def make_token_release_command():
-    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
-    payload = {
-        'is_locked': {
-            'type': 'boolean',
-            'value': False,
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-        'lock_owner_id': {
-            'type': 'string',
-            'value': '',
-            'metadata': {
-                'TimeInstant': {
-                    'type': 'datetime',
-                    'value': t,
-                }
-            }
-        },
-        'waitings': {
-            'type': 'array',
-            'value': [],
             'metadata': {
                 'TimeInstant': {
                     'type': 'datetime',

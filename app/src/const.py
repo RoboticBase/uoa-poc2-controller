@@ -33,6 +33,9 @@ STATE_STANDBY = 'standby'
 STATE_PICKING = 'picking'
 STATE_DELIVERING = 'delivering'
 
+# caller
+ORDERING_LIST = ['zaico-extensions',]
+
 # logging
 LOGGING_JSON = 'logging.json'
 TARGET_HANDLERS = ['console', ]
