@@ -1,10 +1,13 @@
 import os
 import json
+import datetime
 from time import sleep
 from logging import getLogger
 
 from flask import abort, jsonify, request
 from flask.views import MethodView
+
+import dateutil.parser
 
 from src import const, orion
 from src.waypoint import Waypoint
@@ -236,9 +239,11 @@ class RobotNotificationAPI(CommonMixin, MethodView):
 
     def post(self):
         logger.debug(f'RobotNotificationAPI.post')
+        throttling_msec = datetime.timedelta(milliseconds=const.THROTTLING_MSEC)
         for data in request.json['data']:
             robot_id = data['id']
             next_mode = data['mode']['value']
+            time = dateutil.parser.parse(data['time']['value'])
 
             robot_entity = orion.get_entity(
                 FIWARE_SERVICE,
@@ -249,9 +254,19 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id, robot_entity)
             current_mode = robot_entity['current_mode']['value']
             current_state = robot_entity['current_state']['value']
+            last_processed_time = dateutil.parser.parse(robot_entity['last_processed_time']['value'])
             ui_id = ID_TABLE[robot_id]
 
-            if next_mode != current_mode:
+            payload = orion.make_updatelastprocessedtime_command(time)
+            orion.send_command(
+                FIWARE_SERVICE,
+                DELIVERY_ROBOT_SERVICEPATH,
+                DELIVERY_ROBOT_TYPE,
+                robot_id,
+                payload)
+            logger.info(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
+
+            if next_mode != current_mode and time - last_processed_time > throttling_msec:
                 payload = orion.make_updatemode_command(next_mode)
                 orion.send_command(
                     FIWARE_SERVICE,
@@ -263,6 +278,9 @@ class RobotNotificationAPI(CommonMixin, MethodView):
 
                 self._action(robot_id, ui_id, robot_entity, next_mode)
                 self._send_state(robot_id, ui_id, next_state, current_state)
+            else:
+                logger.debug(f'ignore notification, next_mode={next_mode} current_mode={current_mode}, '
+                             f'time - last_processed_time={time - last_processed_time} throttling_msec={throttling_msec}')
 
         return jsonify({'result': 'success'}), 200
 

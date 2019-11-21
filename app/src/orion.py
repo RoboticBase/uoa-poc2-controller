@@ -274,3 +274,20 @@ def make_token_info_command(is_locked, robot_id, waitings):
         },
     }
     return payload
+
+
+def make_updatelastprocessedtime_command(last_processed_time):
+    t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
+    payload = {
+        'last_processed_time': {
+            'type': 'ISO8601',
+            'value': last_processed_time.isoformat(timespec='milliseconds'),
+            'metadata': {
+                'TimeInstant': {
+                    'type': 'datetime',
+                    'value': t,
+                }
+            }
+        },
+    }
+    return payload

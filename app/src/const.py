@@ -43,3 +43,6 @@ TARGET_HANDLERS = ['console', ]
 # move_next
 WAIT_MSEC = 500
 WAIT_MAX_NUM = 10
+
+# notification
+THROTTLING_MSEC = 500
