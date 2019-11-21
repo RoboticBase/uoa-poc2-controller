@@ -10,15 +10,13 @@ import requests
 
 from src import const
 
-ORION_ENDPOINT = os.environ[const.ORION_ENDPOINT]
-TZ = pytz.timezone(os.environ.get(const.TIMEZONE, 'UTC'))
-ORION_TOKEN = os.environ.get(const.ORION_TOKEN)
+TZ = pytz.timezone(const.TIMEZONE)
 
 
 def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, payload):
     headers = __make_headers(fiware_service, fiware_servicepath, True)
     path = os.path.join(const.ORION_BASE_PATH, entity_id, 'attrs')
-    endpoint = f'{ORION_ENDPOINT}{path}?type={entity_type}'
+    endpoint = f'{const.ORION_ENDPOINT}{path}?type={entity_type}'
 
     result = requests.patch(endpoint, headers=headers, json=payload)
     if not (200 <= result.status_code < 300):
@@ -115,7 +113,7 @@ def make_emergency_command(cmd):
 
 def query_entity(fiware_service, fiware_servicepath, entity_type, query):
     headers = __make_headers(fiware_service, fiware_servicepath)
-    endpoint = f'{ORION_ENDPOINT}{const.ORION_BASE_PATH}'
+    endpoint = f'{const.ORION_ENDPOINT}{const.ORION_BASE_PATH}'
     params = {
         'type': entity_type,
         'q': query,
@@ -144,7 +142,7 @@ def query_entity(fiware_service, fiware_servicepath, entity_type, query):
 
 def get_entity(fiware_service, fiware_servicepath, entity_type, entity_id):
     headers = __make_headers(fiware_service, fiware_servicepath)
-    endpoint = f'{ORION_ENDPOINT}{const.ORION_BASE_PATH}{entity_id}'
+    endpoint = f'{const.ORION_ENDPOINT}{const.ORION_BASE_PATH}{entity_id}'
     params = {
         'type': entity_type
     }
@@ -170,8 +168,8 @@ def __make_headers(fiware_service, fiware_servicepath, require_contenttype=False
         'FIWARE-SERVICE': fiware_service,
         'FIWARE-SERVICEPATH': fiware_servicepath,
     }
-    if ORION_TOKEN:
-        headers['Authorization'] = f'bearer {ORION_TOKEN}'
+    if const.ORION_TOKEN:
+        headers['Authorization'] = f'bearer {const.ORION_TOKEN}'
     if require_contenttype:
         headers['Content-Type'] = 'application/json'
 
@@ -211,6 +209,7 @@ def make_updatestate_command(next_state):
     }
     return payload
 
+
 def make_robotui_sendstate_command(next_state, destination):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
     payload = {
@@ -223,6 +222,7 @@ def make_robotui_sendstate_command(next_state, destination):
         },
     }
     return payload
+
 
 def make_robotui_sendtokeninfo_command(token, mode):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
@@ -238,6 +238,7 @@ def make_robotui_sendtokeninfo_command(token, mode):
         },
     }
     return payload
+
 
 def make_token_info_command(is_locked, robot_id, waitings):
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')

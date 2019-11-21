@@ -1,5 +1,3 @@
-import os
-import json
 import datetime
 from time import sleep
 from logging import getLogger
@@ -15,14 +13,6 @@ from src.token import Token, TokenMode
 from src.caller import Caller
 from src.utils import flatten
 from src.etcd_lock import EtcdLock, EtcdLockDoesNotAcquired
-
-FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
-DELIVERY_ROBOT_SERVICEPATH = os.environ[const.DELIVERY_ROBOT_SERVICEPATH]
-DELIVERY_ROBOT_TYPE = os.environ[const.DELIVERY_ROBOT_TYPE]
-DELIVERY_ROBOT_LIST = json.loads(os.environ[const.DELIVERY_ROBOT_LIST])
-ROBOT_UI_SERVICEPATH = os.environ[const.ROBOT_UI_SERVICEPATH]
-ROBOT_UI_TYPE = os.environ[const.ROBOT_UI_TYPE]
-ID_TABLE = json.loads(os.environ[const.ID_TABLE])
 
 logger = getLogger(__name__)
 
@@ -46,9 +36,9 @@ class CommonMixin:
 
     def __check_navi(self, robot_id):
         current_mode = orion.get_entity(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
             robot_id)['mode']['value']
 
         return current_mode == const.MODE_NAVI
@@ -59,13 +49,13 @@ class CommonMixin:
 
     def get_remaining_waypoints_list(self, robot_id):
         return orion.get_entity(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
             robot_id)['remaining_waypoints_list']['value']
 
     def get_available_robot(self):
-        for robot_id in DELIVERY_ROBOT_LIST:
+        for robot_id in const.DELIVERY_ROBOT_LIST:
             if robot_id and not (self.__check_navi(robot_id) or self.check_working(robot_id)):
                 return {
                     'id': robot_id
@@ -84,9 +74,9 @@ class CommonMixin:
         else:
             if not robot_entity:
                 robot_entity = orion.get_entity(
-                    FIWARE_SERVICE,
-                    DELIVERY_ROBOT_SERVICEPATH,
-                    DELIVERY_ROBOT_TYPE,
+                    const.FIWARE_SERVICE,
+                    const.DELIVERY_ROBOT_SERVICEPATH,
+                    const.DELIVERY_ROBOT_TYPE,
                     robot_id)
             navigating_waypoints = robot_entity['navigating_waypoints']['value']
             order = robot_entity['order']['value']
@@ -111,9 +101,9 @@ class CommonMixin:
 
     def get_destination_id(self, robot_id):
         navigating_waypoints = orion.get_entity(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
             robot_id)['navigating_waypoints']['value']
         if not isinstance(navigating_waypoints, dict) or not navigating_waypoints:
             return ''
@@ -126,8 +116,8 @@ class CommonMixin:
             return ''
 
         destination = orion.get_entity(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
             const.PLACE_TYPE,
             navigating_waypoints_to)
         return destination['name']['value']
@@ -162,9 +152,9 @@ class CommonMixin:
         payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail)
 
         orion.send_command(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
             robot_id,
             payload
         )
@@ -194,14 +184,18 @@ class ShipmentAPI(CommonMixin, MethodView):
         try:
             with EtcdLock(available_robot['id'], timeout=const.SHIPMENTAPI_LOCK_TIMEOUT_SEC):
                 orion.send_command(
-                    FIWARE_SERVICE,
-                    DELIVERY_ROBOT_SERVICEPATH,
-                    DELIVERY_ROBOT_TYPE,
+                    const.FIWARE_SERVICE,
+                    const.DELIVERY_ROBOT_SERVICEPATH,
+                    const.DELIVERY_ROBOT_TYPE,
                     available_robot['id'],
                     payload
                 )
-            logger.info(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, order={order}, caller={caller}')
-            return jsonify({'result': 'success', 'delivery_robot': available_robot, 'order': order, 'caller': caller.value}), 201
+            logger.info(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, '
+                        f'order={order}, caller={caller}')
+            return jsonify({'result': 'success',
+                            'delivery_robot': available_robot,
+                            'order': order,
+                            'caller': caller.value}), 201
         except EtcdLockDoesNotAcquired as e:
             logger.error(str(e))
             return jsonify({'result': 'failure', 'cause': str(e)}), 500
@@ -239,9 +233,9 @@ class EmergencyAPI(MethodView):
         payload = orion.make_emergency_command('stop')
 
         orion.send_command(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
             robot_id,
             payload
         )
@@ -274,22 +268,22 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             try:
                 with EtcdLock(robot_id, timeout=0):
                     robot_entity = orion.get_entity(
-                        FIWARE_SERVICE,
-                        DELIVERY_ROBOT_SERVICEPATH,
-                        DELIVERY_ROBOT_TYPE,
+                        const.FIWARE_SERVICE,
+                        const.DELIVERY_ROBOT_SERVICEPATH,
+                        const.DELIVERY_ROBOT_TYPE,
                         robot_id)
 
                     next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id, robot_entity)
                     current_mode = robot_entity['current_mode']['value']
                     current_state = robot_entity['current_state']['value']
                     last_processed_time = dateutil.parser.parse(robot_entity['last_processed_time']['value'])
-                    ui_id = ID_TABLE[robot_id]
+                    ui_id = const.ID_TABLE[robot_id]
 
                     payload = orion.make_updatelastprocessedtime_command(time)
                     orion.send_command(
-                        FIWARE_SERVICE,
-                        DELIVERY_ROBOT_SERVICEPATH,
-                        DELIVERY_ROBOT_TYPE,
+                        const.FIWARE_SERVICE,
+                        const.DELIVERY_ROBOT_SERVICEPATH,
+                        const.DELIVERY_ROBOT_TYPE,
                         robot_id,
                         payload)
                     logger.debug(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
@@ -297,12 +291,13 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     if next_mode != current_mode and time - last_processed_time > RobotNotificationAPI.throttling_msec():
                         payload = orion.make_updatemode_command(next_mode)
                         orion.send_command(
-                            FIWARE_SERVICE,
-                            DELIVERY_ROBOT_SERVICEPATH,
-                            DELIVERY_ROBOT_TYPE,
+                            const.FIWARE_SERVICE,
+                            const.DELIVERY_ROBOT_SERVICEPATH,
+                            const.DELIVERY_ROBOT_TYPE,
                             robot_id,
                             payload)
-                        logger.info(f'update robot state, robot_id={robot_id}, current_mode={current_mode}, next_mode={next_mode}')
+                        logger.info(f'update robot state, robot_id={robot_id}, '
+                                    f'current_mode={current_mode}, next_mode={next_mode}')
 
                         self._action(robot_id, ui_id, robot_entity, next_mode)
                         self._send_state(robot_id, ui_id, next_state, current_state)
@@ -312,7 +307,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                                      f'timedelta={time - last_processed_time} '
                                      f'throttling_msec={RobotNotificationAPI.throttling_msec()}')
                         ignored_data.append(data)
-            except EtcdLockDoesNotAcquired as e:
+            except EtcdLockDoesNotAcquired:
                 ignored_data.append(data)
 
         logger.debug(f'processed_data = {processed_data}, ignored_data = {ignored_data}')
@@ -341,25 +336,25 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     self._send_token_info(ui_id, token, TokenMode.RELEASE)
                     if new_owner_id:
                         self.move_next(new_owner_id, wait=True)
-                        self._send_token_info(ID_TABLE[new_owner_id], token, TokenMode.RESUME)
-                        self._send_token_info(ID_TABLE[new_owner_id], token, TokenMode.LOCK)
+                        self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
+                        self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
 
     def _send_state(self, robot_id, ui_id, next_state, current_state):
         if next_state != current_state:
             payload = orion.make_updatestate_command(next_state)
             orion.send_command(
-                FIWARE_SERVICE,
-                DELIVERY_ROBOT_SERVICEPATH,
-                DELIVERY_ROBOT_TYPE,
+                const.FIWARE_SERVICE,
+                const.DELIVERY_ROBOT_SERVICEPATH,
+                const.DELIVERY_ROBOT_TYPE,
                 robot_id,
                 payload)
 
             destination = self.get_destination_name(robot_id)
             payload = orion.make_robotui_sendstate_command(next_state, destination)
             orion.send_command(
-                FIWARE_SERVICE,
-                ROBOT_UI_SERVICEPATH,
-                ROBOT_UI_TYPE,
+                const.FIWARE_SERVICE,
+                const.ROBOT_UI_SERVICEPATH,
+                const.ROBOT_UI_TYPE,
                 ui_id,
                 payload)
             logger.info(f'publish new state to robot ui({ui_id}), '
@@ -368,9 +363,9 @@ class RobotNotificationAPI(CommonMixin, MethodView):
     def _send_token_info(self, ui_id, token, mode):
         payload = orion.make_robotui_sendtokeninfo_command(token, mode)
         orion.send_command(
-            FIWARE_SERVICE,
-            ROBOT_UI_SERVICEPATH,
-            ROBOT_UI_TYPE,
+            const.FIWARE_SERVICE,
+            const.ROBOT_UI_SERVICEPATH,
+            const.ROBOT_UI_TYPE,
             ui_id,
             payload)
         logger.info(f'publish new token_info to robot ui({ui_id}), token={token}, mode={mode}, '
@@ -394,9 +389,9 @@ class RobotNotificationAPI(CommonMixin, MethodView):
         }
         payload = orion.make_delivery_robot_command('navi', waypoints, navigating_waypoints)
         orion.send_command(
-            FIWARE_SERVICE,
-            DELIVERY_ROBOT_SERVICEPATH,
-            DELIVERY_ROBOT_TYPE,
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
             robot_id,
             payload
         )
