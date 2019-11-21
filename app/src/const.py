@@ -1,3 +1,5 @@
+import os
+
 # environment variable name
 LOG_LEVEL = 'LOG_LEVEL'
 LISTEN_PORT = 'LISTEN_PORT'
@@ -14,6 +16,11 @@ ID_TABLE = 'ID_TABLE'
 CORS_ORIGINS = 'CORS_ORIGINS'
 TOKEN_SERVICEPATH = 'TOKEN_SERVICEPATH'
 TOKEN_TYPE = 'TOKEN_TYPE'
+ETCD_HOST = os.environ['ETCD_HOST']
+ETCD_PORT = int(os.environ['ETCD_PORT'])
+ETCD_LOCK_TTL_SEC = int(os.environ.get('ETCD_LOCK_TTL_SEC', '60'))
+SHIPMENTAPI_LOCK_TIMEOUT_SEC = int(os.environ.get('SHIPMENTAPI_LOCK_TIMEOUT_SEC', '10'))
+MOVENEXTAPI_LOCK_TIMEOUT_SEC = int(os.environ.get('MOVENEXTAPI_LOCK_TIMEOUT_SEC', '10'))
 
 # constants
 ORION_BASE_PATH = '/v2/entities/'
@@ -46,3 +53,6 @@ WAIT_MAX_NUM = 10
 
 # notification
 THROTTLING_MSEC = 500
+
+# etcd_lock
+DEFAULT_LOCK_TIMEOUT_SEC = 10
