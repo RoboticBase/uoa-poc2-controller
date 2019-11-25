@@ -23,15 +23,16 @@ class EtcdLock:
         self.lock = None
 
     def __enter__(self):
-        self.lock = EtcdLock._etcd_client.lock(self.name, ttl=const.ETCD_LOCK_TTL_SEC)
-        if not self.lock.acquire(timeout=self.timeout):
-            msg = f'can not acquire etcd.lock for {self.name}'
-            logger.warn(msg)
-            raise EtcdLockDoesNotAcquired(msg)
-        logger.debug(f'acquire etcd.lock for {self.name}')
+#        self.lock = EtcdLock._etcd_client.lock(self.name, ttl=const.ETCD_LOCK_TTL_SEC)
+#        if not self.lock.acquire(timeout=self.timeout):
+#            msg = f'can not acquire etcd.lock for {self.name}'
+#            logger.warn(msg)
+#            raise EtcdLockDoesNotAcquired(msg)
+#        logger.debug(f'acquire etcd.lock for {self.name}')
         return self
 
     def __exit__(self, ex_type, ex_value, trace):
-        if self.lock is not None:
-            self.lock.release()
-            logger.debug(f'release etcd.lock for {self.name}')
+        pass
+#        if self.lock is not None:
+#            self.lock.release()
+#            logger.debug(f'release etcd.lock for {self.name}')
