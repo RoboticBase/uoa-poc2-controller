@@ -14,6 +14,7 @@ RUN apk update && \
     pip install pipenv uwsgi~=2.0 && \
     pipenv install --system && \
     rm /etc/nginx/nginx.conf && \
+    apk del --purge .build && \
     rm -r /root/.cache
 
 COPY docker-conf/nginx.conf /etc/nginx/nginx.conf

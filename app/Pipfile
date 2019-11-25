@@ -12,7 +12,6 @@ requests = "~=2.21.0"
 pytz = "~=2019.1"
 flask-cors = "*"
 python-dateutil = "*"
-etcd3 = "*"
 
 [requires]
 python_version = "3.7"

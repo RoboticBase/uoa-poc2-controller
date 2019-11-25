@@ -12,7 +12,6 @@ from src.waypoint import Waypoint
 from src.token import Token, TokenMode
 from src.caller import Caller
 from src.utils import flatten
-from src.etcd_lock import EtcdLock, EtcdLockDoesNotAcquired
 
 logger = getLogger(__name__)
 
@@ -181,24 +180,19 @@ class ShipmentAPI(CommonMixin, MethodView):
 
         payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail, routes, order, caller)
 
-        try:
-            with EtcdLock(available_robot['id'], timeout=const.SHIPMENTAPI_LOCK_TIMEOUT_SEC):
-                orion.send_command(
-                    const.FIWARE_SERVICE,
-                    const.DELIVERY_ROBOT_SERVICEPATH,
-                    const.DELIVERY_ROBOT_TYPE,
-                    available_robot['id'],
-                    payload
-                )
-            logger.info(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, '
-                        f'order={order}, caller={caller}')
-            return jsonify({'result': 'success',
-                            'delivery_robot': available_robot,
-                            'order': order,
-                            'caller': caller.value}), 201
-        except EtcdLockDoesNotAcquired as e:
-            logger.error(str(e))
-            return jsonify({'result': 'failure', 'cause': str(e)}), 500
+        orion.send_command(
+            const.FIWARE_SERVICE,
+            const.DELIVERY_ROBOT_SERVICEPATH,
+            const.DELIVERY_ROBOT_TYPE,
+            available_robot['id'],
+            payload
+        )
+        logger.info(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, '
+                    f'order={order}, caller={caller}')
+        return jsonify({'result': 'success',
+                        'delivery_robot': available_robot,
+                        'order': order,
+                        'caller': caller.value}), 201
 
 
 class RobotStateAPI(CommonMixin, MethodView):
@@ -216,13 +210,8 @@ class MoveNextAPI(CommonMixin, MethodView):
 
     def patch(self, robot_id):
         logger.debug(f'MoveNextAPI.patch, robot_id={robot_id}')
-        try:
-            with EtcdLock(robot_id, timeout=const.MOVENEXTAPI_LOCK_TIMEOUT_SEC):
-                self.move_next(robot_id)
-            return jsonify({'result': 'success'}), 200
-        except EtcdLockDoesNotAcquired as e:
-            logger.error(str(e))
-            return jsonify({'result': 'failure', 'cause': str(e)}), 500
+        self.move_next(robot_id)
+        return jsonify({'result': 'success'}), 200
 
 
 class EmergencyAPI(MethodView):
@@ -265,49 +254,45 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             next_mode = data['mode']['value']
             time = dateutil.parser.parse(data['time']['value'])
 
-            try:
-                with EtcdLock(robot_id, timeout=0):
-                    robot_entity = orion.get_entity(
-                        const.FIWARE_SERVICE,
-                        const.DELIVERY_ROBOT_SERVICEPATH,
-                        const.DELIVERY_ROBOT_TYPE,
-                        robot_id)
+            robot_entity = orion.get_entity(
+                const.FIWARE_SERVICE,
+                const.DELIVERY_ROBOT_SERVICEPATH,
+                const.DELIVERY_ROBOT_TYPE,
+                robot_id)
 
-                    next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id, robot_entity)
-                    current_mode = robot_entity['current_mode']['value']
-                    current_state = robot_entity['current_state']['value']
-                    last_processed_time = dateutil.parser.parse(robot_entity['last_processed_time']['value'])
-                    ui_id = const.ID_TABLE[robot_id]
+            next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id, robot_entity)
+            current_mode = robot_entity['current_mode']['value']
+            current_state = robot_entity['current_state']['value']
+            last_processed_time = dateutil.parser.parse(robot_entity['last_processed_time']['value'])
+            ui_id = const.ID_TABLE[robot_id]
 
-                    payload = orion.make_updatelastprocessedtime_command(time)
-                    orion.send_command(
-                        const.FIWARE_SERVICE,
-                        const.DELIVERY_ROBOT_SERVICEPATH,
-                        const.DELIVERY_ROBOT_TYPE,
-                        robot_id,
-                        payload)
-                    logger.debug(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
+            payload = orion.make_updatelastprocessedtime_command(time)
+            orion.send_command(
+                const.FIWARE_SERVICE,
+                const.DELIVERY_ROBOT_SERVICEPATH,
+                const.DELIVERY_ROBOT_TYPE,
+                robot_id,
+                payload)
+            logger.debug(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
 
-                    if next_mode != current_mode and time - last_processed_time > RobotNotificationAPI.throttling_msec():
-                        payload = orion.make_updatemode_command(next_mode)
-                        orion.send_command(
-                            const.FIWARE_SERVICE,
-                            const.DELIVERY_ROBOT_SERVICEPATH,
-                            const.DELIVERY_ROBOT_TYPE,
-                            robot_id,
-                            payload)
-                        logger.info(f'update robot state, robot_id={robot_id}, '
-                                    f'current_mode={current_mode}, next_mode={next_mode}')
+            if next_mode != current_mode and time - last_processed_time > RobotNotificationAPI.throttling_msec():
+                payload = orion.make_updatemode_command(next_mode)
+                orion.send_command(
+                    const.FIWARE_SERVICE,
+                    const.DELIVERY_ROBOT_SERVICEPATH,
+                    const.DELIVERY_ROBOT_TYPE,
+                    robot_id,
+                    payload)
+                logger.info(f'update robot state, robot_id={robot_id}, '
+                            f'current_mode={current_mode}, next_mode={next_mode}')
 
-                        self._action(robot_id, ui_id, robot_entity, next_mode)
-                        self._send_state(robot_id, ui_id, next_state, current_state)
-                        processed_data.append(data)
-                    else:
-                        logger.debug(f'ignore notification, next_mode={next_mode} current_mode={current_mode}, '
-                                     f'timedelta={time - last_processed_time} '
-                                     f'throttling_msec={RobotNotificationAPI.throttling_msec()}')
-                        ignored_data.append(data)
-            except EtcdLockDoesNotAcquired:
+                self._action(robot_id, ui_id, robot_entity, next_mode)
+                self._send_state(robot_id, ui_id, next_state, current_state)
+                processed_data.append(data)
+            else:
+                logger.debug(f'ignore notification, next_mode={next_mode} current_mode={current_mode}, '
+                             f'timedelta={time - last_processed_time} '
+                             f'throttling_msec={RobotNotificationAPI.throttling_msec()}')
                 ignored_data.append(data)
 
         logger.debug(f'processed_data = {processed_data}, ignored_data = {ignored_data}')
@@ -335,13 +320,9 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     self.move_next(robot_id, wait=True)
                     self._send_token_info(ui_id, token, TokenMode.RELEASE)
                     if new_owner_id:
-                        try:
-                            with EtcdLock(new_owner_id):
-                                self.move_next(new_owner_id, wait=True)
-                            self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
-                            self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
-                        except EtcdLockDoesNotAcquired as e:
-                            logger.error(f'lock error of new_owner_id ({new_owner_id}), {str(e)}')
+                        self.move_next(new_owner_id, wait=True)
+                        self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
+                        self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
 
     def _send_state(self, robot_id, ui_id, next_state, current_state):
         if next_state != current_state:
