@@ -12,6 +12,7 @@ from src.waypoint import Waypoint
 from src.token import Token, TokenMode
 from src.caller import Caller
 from src.utils import flatten
+from src.mongo_lock import MongoThrottling, MongoLockError
 
 logger = getLogger(__name__)
 
@@ -121,24 +122,70 @@ class CommonMixin:
             navigating_waypoints_to)
         return destination['name']['value']
 
-    def move_next(self, robot_id, wait=False):
-        if not wait:
-            self.check_mode(robot_id)
-        else:
+    def move_robot(self, robot_id, cmd_waypoints, navigating_waypoints,
+                   remaining_waypoints_list=None, current_routes=None, order=None, caller=None):
+
+        def _move(cmd):
+            payload = orion.make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remaining_waypoints_list, current_routes, order, caller)
+            orion.send_command(
+                const.FIWARE_SERVICE,
+                const.DELIVERY_ROBOT_SERVICEPATH,
+                const.DELIVERY_ROBOT_TYPE,
+                robot_id,
+                payload
+            )
+
             cnt = 0
             while cnt < const.MOVENEXT_WAIT_MAX_NUM:
                 cnt += 1
-                logger.debug(f'waiting for mode == STANDBY ({robot_id}), cnt = {cnt}')
-                if not self.__check_navi(robot_id):
+                robot_entity = orion.get_entity(
+                    const.FIWARE_SERVICE,
+                    const.DELIVERY_ROBOT_SERVICEPATH,
+                    const.DELIVERY_ROBOT_TYPE,
+                    robot_id)
+                if robot_entity['send_cmd_status']['value'] == 'OK':
                     break
                 sleep(const.MOVENEXT_WAIT_MSEC / 1000.0)
             else:
-                abort(423, {
-                    'message': f'move_next timeout robot({robot_id})',
-                    'id': robot_id,
-                    'wait_msec': const.MOVENEXT_WAIT_MSEC,
-                    'wait_count': cnt,
+                msg = f'send_cmd_status still pending, robot_id={robot_id}, wait_msec={const.MOVENEXT_WAIT_MSEC}, wait_count={cnt}'
+                logger.error(msg)
+                abort(500, {
+                    'message': msg
                 })
+
+            cmd_info = robot_entity['send_cmd_info']['value']
+            if 'result' not in cmd_info:
+                msg = f'invalid send_cmd_info, {cmd_info}'
+                logger.error(msg)
+                abort(500, {
+                    'message': msg,
+                })
+            if cmd_info['result'] not in ['ack', 'ignore']:
+                msg = f'move robot error, robot_id={robot_id}, errors={cmd_info["errors"]}'
+                logger.error(msg)
+                abort(500, {
+                    'message': msg,
+                })
+            return cmd_info['result']
+
+        result = _move('navi')
+        logger.debug(f'move "navi", robot_id={robot_id}, result={result}')
+        if result == 'ignore':
+            result2 = _move('refresh')
+            logger.debug(f'move "refresh", robot_id={robot_id}, result={result}')
+            if result2 != 'ack':
+                msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}", result={result2}'
+                logger.error(msg)
+                abort(500, {
+                    'message': msg,
+                })
+
+        logger.info(f'move robot({robot_id}) to "{navigating_waypoints["to"]}" (waypoints={navigating_waypoints["waypoints"]}, '
+                    f'order={order}, caller={caller}')
+
+    def move_next(self, robot_id, check=True):
+        if check:
+            self.check_mode(robot_id)
 
         remaining_waypoints_list = self.get_remaining_waypoints_list(robot_id)
         if not isinstance(remaining_waypoints_list, list) or len(remaining_waypoints_list) == 0:
@@ -148,16 +195,7 @@ class CommonMixin:
             })
 
         head, *tail = remaining_waypoints_list
-        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail)
-
-        orion.send_command(
-            const.FIWARE_SERVICE,
-            const.DELIVERY_ROBOT_SERVICEPATH,
-            const.DELIVERY_ROBOT_TYPE,
-            robot_id,
-            payload
-        )
-        logger.info(f'move robot({robot_id}) to "{head["to"]}" (waypoints={head["waypoints"]}')
+        self.move_robot(robot_id, head['waypoints'], head, tail)
 
 
 class ShipmentAPI(CommonMixin, MethodView):
@@ -178,17 +216,8 @@ class ShipmentAPI(CommonMixin, MethodView):
         routes, waypoints_list, order = ShipmentAPI.waypoint().estimate_routes(shipment_list, available_robot['id'])
         head, *tail = waypoints_list
 
-        payload = orion.make_delivery_robot_command('navi', head['waypoints'], head, tail, routes, order, caller)
+        self.move_robot(available_robot['id'], head['waypoints'], head, tail, routes, order, caller)
 
-        orion.send_command(
-            const.FIWARE_SERVICE,
-            const.DELIVERY_ROBOT_SERVICEPATH,
-            const.DELIVERY_ROBOT_TYPE,
-            available_robot['id'],
-            payload
-        )
-        logger.info(f'move robot({available_robot["id"]}) to "{head["to"]}" (waypoints={head["waypoints"]}, '
-                    f'order={order}, caller={caller}')
         return jsonify({'result': 'success',
                         'delivery_robot': available_robot,
                         'order': order,
@@ -236,14 +265,6 @@ class EmergencyAPI(MethodView):
 class RobotNotificationAPI(CommonMixin, MethodView):
     NAME = 'robotnotificationapi'
 
-    _throttling_msec = None
-
-    @classmethod
-    def throttling_msec(cls):
-        if cls._throttling_msec is None:
-            cls._throttling_msec = datetime.timedelta(milliseconds=const.NOTIFICATION_THROTTLING_MSEC)
-        return cls._throttling_msec
-
     def post(self):
         logger.debug(f'RobotNotificationAPI.post')
         ignored_data = []
@@ -254,45 +275,48 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             next_mode = data['mode']['value']
             time = dateutil.parser.parse(data['time']['value'])
 
-            robot_entity = orion.get_entity(
-                const.FIWARE_SERVICE,
-                const.DELIVERY_ROBOT_SERVICEPATH,
-                const.DELIVERY_ROBOT_TYPE,
-                robot_id)
+            try:
+                MongoThrottling.lock(robot_id, time)
+                robot_entity = orion.get_entity(
+                    const.FIWARE_SERVICE,
+                    const.DELIVERY_ROBOT_SERVICEPATH,
+                    const.DELIVERY_ROBOT_TYPE,
+                    robot_id)
 
-            next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id, robot_entity)
-            current_mode = robot_entity['current_mode']['value']
-            current_state = robot_entity['current_state']['value']
-            last_processed_time = dateutil.parser.parse(robot_entity['last_processed_time']['value'])
-            ui_id = const.ID_TABLE[robot_id]
+                next_state = self.calc_state(next_mode == const.MODE_NAVI, robot_id, robot_entity)
+                current_mode = robot_entity['current_mode']['value']
+                current_state = robot_entity['current_state']['value']
+                last_processed_time = dateutil.parser.parse(robot_entity['last_processed_time']['value'])
+                ui_id = const.ID_TABLE[robot_id]
 
-            payload = orion.make_updatelastprocessedtime_command(time)
-            orion.send_command(
-                const.FIWARE_SERVICE,
-                const.DELIVERY_ROBOT_SERVICEPATH,
-                const.DELIVERY_ROBOT_TYPE,
-                robot_id,
-                payload)
-            logger.debug(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
-
-            if next_mode != current_mode and time - last_processed_time > RobotNotificationAPI.throttling_msec():
-                payload = orion.make_updatemode_command(next_mode)
+                payload = orion.make_updatelastprocessedtime_command(time)
                 orion.send_command(
                     const.FIWARE_SERVICE,
                     const.DELIVERY_ROBOT_SERVICEPATH,
                     const.DELIVERY_ROBOT_TYPE,
                     robot_id,
                     payload)
-                logger.info(f'update robot state, robot_id={robot_id}, '
-                            f'current_mode={current_mode}, next_mode={next_mode}')
+                logger.debug(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
 
-                self._action(robot_id, ui_id, robot_entity, next_mode)
-                self._send_state(robot_id, ui_id, next_state, current_state)
-                processed_data.append(data)
-            else:
-                logger.debug(f'ignore notification, next_mode={next_mode} current_mode={current_mode}, '
-                             f'timedelta={time - last_processed_time} '
-                             f'throttling_msec={RobotNotificationAPI.throttling_msec()}')
+                if next_mode != current_mode:
+                    payload = orion.make_updatemode_command(next_mode)
+                    orion.send_command(
+                        const.FIWARE_SERVICE,
+                        const.DELIVERY_ROBOT_SERVICEPATH,
+                        const.DELIVERY_ROBOT_TYPE,
+                        robot_id,
+                        payload)
+                    logger.info(f'update robot state, robot_id={robot_id}, '
+                                f'current_mode={current_mode}, next_mode={next_mode}')
+
+                    self._action(robot_id, ui_id, robot_entity, next_mode)
+                    self._send_state(robot_id, ui_id, next_state, current_state)
+                    processed_data.append(data)
+                else:
+                    logger.debug(f'ignore notification, next_mode={next_mode} current_mode={current_mode}')
+                    ignored_data.append(data)
+            except MongoLockError as e:
+                logger.warn(str(e))
                 ignored_data.append(data)
 
         logger.debug(f'processed_data = {processed_data}, ignored_data = {ignored_data}')
@@ -309,7 +333,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                 if func == 'lock':
                     has_lock = token.get_lock(robot_id)
                     if has_lock:
-                        self.move_next(robot_id, wait=True)
+                        self.move_next(robot_id, check=False)
                         self._send_token_info(ui_id, token, TokenMode.LOCK)
                     else:
                         if waiting_route:
@@ -317,10 +341,10 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                         self._send_token_info(ui_id, token, TokenMode.SUSPEND)
                 elif func == 'release':
                     new_owner_id = token.release_lock(robot_id)
-                    self.move_next(robot_id, wait=True)
+                    self.move_next(robot_id, check=False)
                     self._send_token_info(ui_id, token, TokenMode.RELEASE)
                     if new_owner_id:
-                        self.move_next(new_owner_id, wait=True)
+                        self.move_next(new_owner_id, check=False)
                         self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
                         self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
 
@@ -372,12 +396,6 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             },
             'waypoints': waypoints,
         }
-        payload = orion.make_delivery_robot_command('navi', waypoints, navigating_waypoints)
-        orion.send_command(
-            const.FIWARE_SERVICE,
-            const.DELIVERY_ROBOT_SERVICEPATH,
-            const.DELIVERY_ROBOT_TYPE,
-            robot_id,
-            payload
-        )
+
+        self.move_robot(robot_id, waypoints, navigating_waypoints)
         logger.info(f'take refuge a robot({robot_id}) in "{waiting_route["to"]}"')
