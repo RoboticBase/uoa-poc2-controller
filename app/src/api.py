@@ -169,12 +169,13 @@ class CommonMixin:
             return cmd_info['result']
 
         result = _move('navi')
-        logger.debug(f'move "navi", robot_id={robot_id}, result={result}')
+        logger.info(f'send "navi" command to robot({robot_id}), result={result}')
         if result == 'ignore':
             result2 = _move('refresh')
-            logger.debug(f'move "refresh", robot_id={robot_id}, result={result}')
+            logger.info(f'send "refresh" command to robot({robot_id}), result={result2}')
             if result2 != 'ack':
-                msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}", result={result2}'
+                msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}" using "navi" and "refresh", ' \
+                    f'navi result={result} refresh result={result2}'
                 logger.error(msg)
                 abort(500, {
                     'message': msg,
