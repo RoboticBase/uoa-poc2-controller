@@ -1,13 +1,7 @@
-import os
-import json
 from enum import Enum
 from logging import getLogger
 
 from src import const, orion
-
-FIWARE_SERVICE = os.environ[const.FIWARE_SERVICE]
-TOKEN_SERVICEPATH = os.environ[const.TOKEN_SERVICEPATH]
-TOKEN_TYPE = os.environ[const.TOKEN_TYPE]
 
 logger = getLogger(__name__)
 
@@ -31,9 +25,9 @@ class Token:
 
     def _renew_entity(self):
         self._entity = orion.get_entity(
-            FIWARE_SERVICE,
-            TOKEN_SERVICEPATH,
-            TOKEN_TYPE,
+            const.FIWARE_SERVICE,
+            const.TOKEN_SERVICEPATH,
+            const.TOKEN_TYPE,
             self._token)
         self.is_locked = self._entity['is_locked']['value']
         self.lock_owner_id = self._entity['lock_owner_id']['value']
@@ -49,9 +43,9 @@ class Token:
 
             payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
             orion.send_command(
-                FIWARE_SERVICE,
-                TOKEN_SERVICEPATH,
-                TOKEN_TYPE,
+                const.FIWARE_SERVICE,
+                const.TOKEN_SERVICEPATH,
+                const.TOKEN_TYPE,
                 self._token,
                 payload)
             logger.info(f'lock token ({self._token}) by {robot_id}')
@@ -62,9 +56,9 @@ class Token:
 
                 payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
                 orion.send_command(
-                    FIWARE_SERVICE,
-                    TOKEN_SERVICEPATH,
-                    TOKEN_TYPE,
+                    const.FIWARE_SERVICE,
+                    const.TOKEN_SERVICEPATH,
+                    const.TOKEN_TYPE,
                     self._token,
                     payload)
                 logger.info(f'wait token ({self._token}) by {robot_id}')
@@ -80,9 +74,9 @@ class Token:
 
             payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
             orion.send_command(
-                FIWARE_SERVICE,
-                TOKEN_SERVICEPATH,
-                TOKEN_TYPE,
+                const.FIWARE_SERVICE,
+                const.TOKEN_SERVICEPATH,
+                const.TOKEN_TYPE,
                 self._token,
                 payload)
             logger.info(f'release token ({self._token}) by {robot_id}')
@@ -96,9 +90,9 @@ class Token:
 
             payload = orion.make_token_info_command(self.is_locked, self.lock_owner_id, self.waitings)
             orion.send_command(
-                FIWARE_SERVICE,
-                TOKEN_SERVICEPATH,
-                TOKEN_TYPE,
+                const.FIWARE_SERVICE,
+                const.TOKEN_SERVICEPATH,
+                const.TOKEN_TYPE,
                 self._token,
                 payload)
             logger.info(f'switch token ({self._token}) from {robot_id} to {new_owner}')
