@@ -1,3 +1,4 @@
+import random
 import datetime
 from time import sleep
 from logging import getLogger
@@ -54,15 +55,20 @@ class CommonMixin:
             const.DELIVERY_ROBOT_TYPE,
             robot_id)['remaining_waypoints_list']['value']
 
+    # def get_available_robot(self):
+    #     for robot_id in const.DELIVERY_ROBOT_LIST:
+    #         if robot_id and not (self.__check_navi(robot_id) or self.check_working(robot_id)):
+    #             return {
+    #                 'id': robot_id
+    #             }
+    #     abort(422, {
+    #         'message': f'no available robot',
+    #     })
+
     def get_available_robot(self):
-        for robot_id in const.DELIVERY_ROBOT_LIST:
-            if robot_id and not (self.__check_navi(robot_id) or self.check_working(robot_id)):
-                return {
-                    'id': robot_id
-                }
-        abort(422, {
-            'message': f'no available robot',
-        })
+        return {
+            'id': random.choice(const.DELIVERY_ROBOT_LIST)
+        }
 
     def get_state(self, robot_id):
         is_navi = self.__check_navi(robot_id)
@@ -134,52 +140,53 @@ class CommonMixin:
                 robot_id,
                 payload
             )
+            return None
 
-            cnt = 0
-            while cnt < const.MOVENEXT_WAIT_MAX_NUM:
-                cnt += 1
-                robot_entity = orion.get_entity(
-                    const.FIWARE_SERVICE,
-                    const.DELIVERY_ROBOT_SERVICEPATH,
-                    const.DELIVERY_ROBOT_TYPE,
-                    robot_id)
-                if robot_entity['send_cmd_status']['value'] == 'OK':
-                    break
-                sleep(const.MOVENEXT_WAIT_MSEC / 1000.0)
-            else:
-                msg = f'send_cmd_status still pending, robot_id={robot_id}, wait_msec={const.MOVENEXT_WAIT_MSEC}, wait_count={cnt}'
-                logger.error(msg)
-                abort(500, {
-                    'message': msg
-                })
-
-            cmd_info = robot_entity['send_cmd_info']['value']
-            if 'result' not in cmd_info:
-                msg = f'invalid send_cmd_info, {cmd_info}'
-                logger.error(msg)
-                abort(500, {
-                    'message': msg,
-                })
-            if cmd_info['result'] not in ['ack', 'ignore']:
-                msg = f'move robot error, robot_id={robot_id}, errors={cmd_info["errors"]}'
-                logger.error(msg)
-                abort(500, {
-                    'message': msg,
-                })
-            return cmd_info['result']
+            # cnt = 0
+            # while cnt < const.MOVENEXT_WAIT_MAX_NUM:
+            #     cnt += 1
+            #     robot_entity = orion.get_entity(
+            #         const.FIWARE_SERVICE,
+            #         const.DELIVERY_ROBOT_SERVICEPATH,
+            #         const.DELIVERY_ROBOT_TYPE,
+            #         robot_id)
+            #     if robot_entity['send_cmd_status']['value'] == 'OK':
+            #         break
+            #     sleep(const.MOVENEXT_WAIT_MSEC / 1000.0)
+            # else:
+            #     msg = f'send_cmd_status still pending, robot_id={robot_id}, wait_msec={const.MOVENEXT_WAIT_MSEC}, wait_count={cnt}'
+            #     logger.error(msg)
+            #     abort(500, {
+            #         'message': msg
+            #     })
+            #
+            # cmd_info = robot_entity['send_cmd_info']['value']
+            # if 'result' not in cmd_info:
+            #     msg = f'invalid send_cmd_info, {cmd_info}'
+            #     logger.error(msg)
+            #     abort(500, {
+            #         'message': msg,
+            #     })
+            # if cmd_info['result'] not in ['ack', 'ignore']:
+            #     msg = f'move robot error, robot_id={robot_id}, errors={cmd_info["errors"]}'
+            #     logger.error(msg)
+            #     abort(500, {
+            #         'message': msg,
+            #     })
+            # return cmd_info['result']
 
         result = _move('navi')
         logger.info(f'send "navi" command to robot({robot_id}), result={result}')
-        if result == 'ignore':
-            result2 = _move('refresh')
-            logger.info(f'send "refresh" command to robot({robot_id}), result={result2}')
-            if result2 != 'ack':
-                msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}" using "navi" and "refresh", ' \
-                    f'navi result={result} refresh result={result2}'
-                logger.error(msg)
-                abort(500, {
-                    'message': msg,
-                })
+        # if result == 'ignore':
+        #     result2 = _move('refresh')
+        #     logger.info(f'send "refresh" command to robot({robot_id}), result={result2}')
+        #     if result2 != 'ack':
+        #         msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}" using "navi" and "refresh", ' \
+        #             f'navi result={result} refresh result={result2}'
+        #         logger.error(msg)
+        #         abort(500, {
+        #             'message': msg,
+        #         })
 
         logger.info(f'move robot({robot_id}) to "{navigating_waypoints["to"]}" (waypoints={navigating_waypoints["waypoints"]}, '
                     f'order={order}, caller={caller}')
@@ -348,6 +355,12 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                         self.move_next(new_owner_id, check=False)
                         self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.RESUME)
                         self._send_token_info(const.ID_TABLE[new_owner_id], token, TokenMode.LOCK)
+                elif func == 'pick':
+                    logger.info(f'picking ({robot_id})')
+                    self.move_next(robot_id, check=False)
+                elif func == 'deliver':
+                    logger.info(f'delivering ({robot_id})')
+                    self.move_next(robot_id, check=False)
 
     def _send_state(self, robot_id, ui_id, next_state, current_state):
         if next_state != current_state:
@@ -361,23 +374,23 @@ class RobotNotificationAPI(CommonMixin, MethodView):
 
             destination = self.get_destination_name(robot_id)
             payload = orion.make_robotui_sendstate_command(next_state, destination)
-            orion.send_command(
-                const.FIWARE_SERVICE,
-                const.ROBOT_UI_SERVICEPATH,
-                const.ROBOT_UI_TYPE,
-                ui_id,
-                payload)
+            # orion.send_command(
+            #     const.FIWARE_SERVICE,
+            #     const.ROBOT_UI_SERVICEPATH,
+            #     const.ROBOT_UI_TYPE,
+            #     ui_id,
+            #     payload)
             logger.info(f'publish new state to robot ui({ui_id}), '
                         f'current_state={current_state}, next_state={next_state}, destination={destination}')
 
     def _send_token_info(self, ui_id, token, mode):
         payload = orion.make_robotui_sendtokeninfo_command(token, mode)
-        orion.send_command(
-            const.FIWARE_SERVICE,
-            const.ROBOT_UI_SERVICEPATH,
-            const.ROBOT_UI_TYPE,
-            ui_id,
-            payload)
+        # orion.send_command(
+        #     const.FIWARE_SERVICE,
+        #     const.ROBOT_UI_SERVICEPATH,
+        #     const.ROBOT_UI_TYPE,
+        #     ui_id,
+        #     payload)
         logger.info(f'publish new token_info to robot ui({ui_id}), token={token}, mode={mode}, '
                     f'lock_owner_id={token.lock_owner_id}, prev_owner_id={token.prev_owner_id}')
 
