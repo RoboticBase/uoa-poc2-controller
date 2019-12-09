@@ -14,6 +14,7 @@ from src.token import Token, TokenMode
 from src.caller import Caller
 from src.utils import flatten
 from src.mongo_lock import MongoThrottling, MongoLockError
+from src.message import MessageType, MongoMessage
 
 logger = getLogger(__name__)
 
@@ -54,16 +55,6 @@ class CommonMixin:
             const.DELIVERY_ROBOT_SERVICEPATH,
             const.DELIVERY_ROBOT_TYPE,
             robot_id)['remaining_waypoints_list']['value']
-
-    # def get_available_robot(self):
-    #     for robot_id in const.DELIVERY_ROBOT_LIST:
-    #         if robot_id and not (self.__check_navi(robot_id) or self.check_working(robot_id)):
-    #             return {
-    #                 'id': robot_id
-    #             }
-    #     abort(422, {
-    #         'message': f'no available robot',
-    #     })
 
     def get_available_robot(self):
         return {
@@ -142,54 +133,23 @@ class CommonMixin:
             )
             return None
 
-            # cnt = 0
-            # while cnt < const.MOVENEXT_WAIT_MAX_NUM:
-            #     cnt += 1
-            #     robot_entity = orion.get_entity(
-            #         const.FIWARE_SERVICE,
-            #         const.DELIVERY_ROBOT_SERVICEPATH,
-            #         const.DELIVERY_ROBOT_TYPE,
-            #         robot_id)
-            #     if robot_entity['send_cmd_status']['value'] == 'OK':
-            #         break
-            #     sleep(const.MOVENEXT_WAIT_MSEC / 1000.0)
-            # else:
-            #     msg = f'send_cmd_status still pending, robot_id={robot_id}, wait_msec={const.MOVENEXT_WAIT_MSEC}, wait_count={cnt}'
-            #     logger.error(msg)
-            #     abort(500, {
-            #         'message': msg
-            #     })
-            #
-            # cmd_info = robot_entity['send_cmd_info']['value']
-            # if 'result' not in cmd_info:
-            #     msg = f'invalid send_cmd_info, {cmd_info}'
-            #     logger.error(msg)
-            #     abort(500, {
-            #         'message': msg,
-            #     })
-            # if cmd_info['result'] not in ['ack', 'ignore']:
-            #     msg = f'move robot error, robot_id={robot_id}, errors={cmd_info["errors"]}'
-            #     logger.error(msg)
-            #     abort(500, {
-            #         'message': msg,
-            #     })
-            # return cmd_info['result']
 
         result = _move('navi')
         logger.info(f'send "navi" command to robot({robot_id}), result={result}')
-        # if result == 'ignore':
-        #     result2 = _move('refresh')
-        #     logger.info(f'send "refresh" command to robot({robot_id}), result={result2}')
-        #     if result2 != 'ack':
-        #         msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}" using "navi" and "refresh", ' \
-        #             f'navi result={result} refresh result={result2}'
-        #         logger.error(msg)
-        #         abort(500, {
-        #             'message': msg,
-        #         })
 
         logger.info(f'move robot({robot_id}) to "{navigating_waypoints["to"]}" (waypoints={navigating_waypoints["waypoints"]}, '
                     f'order={order}, caller={caller}')
+
+        def destname(to):
+            destination = orion.get_entity(
+                const.FIWARE_SERVICE,
+                const.DELIVERY_ROBOT_SERVICEPATH,
+                const.PLACE_TYPE,
+                to)
+            return destination['name']['value']
+
+        message = f'{destname(navigating_waypoints["to"])}を目的地として設定しました'
+        MongoMessage.write(robot_id, MessageType.Destination, message)
 
     def move_next(self, robot_id, check=True):
         if check:
@@ -316,6 +276,13 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                         payload)
                     logger.info(f'update robot state, robot_id={robot_id}, '
                                 f'current_mode={current_mode}, next_mode={next_mode}')
+                    message = None
+                    if next_mode == 'navi':
+                        message = 'ロボットが動き出しました'
+                    elif next_mode == 'standby':
+                        message = 'ロボットが停止しました'
+                    if message:
+                        MongoMessage.write(robot_id, MessageType.State, message)
 
                     self._action(robot_id, ui_id, robot_entity, next_mode)
                     self._send_state(robot_id, ui_id, next_state, current_state)
@@ -374,25 +341,24 @@ class RobotNotificationAPI(CommonMixin, MethodView):
 
             destination = self.get_destination_name(robot_id)
             payload = orion.make_robotui_sendstate_command(next_state, destination)
-            # orion.send_command(
-            #     const.FIWARE_SERVICE,
-            #     const.ROBOT_UI_SERVICEPATH,
-            #     const.ROBOT_UI_TYPE,
-            #     ui_id,
-            #     payload)
             logger.info(f'publish new state to robot ui({ui_id}), '
                         f'current_state={current_state}, next_state={next_state}, destination={destination}')
 
     def _send_token_info(self, ui_id, token, mode):
         payload = orion.make_robotui_sendtokeninfo_command(token, mode)
-        # orion.send_command(
-        #     const.FIWARE_SERVICE,
-        #     const.ROBOT_UI_SERVICEPATH,
-        #     const.ROBOT_UI_TYPE,
-        #     ui_id,
-        #     payload)
         logger.info(f'publish new token_info to robot ui({ui_id}), token={token}, mode={mode}, '
                     f'lock_owner_id={token.lock_owner_id}, prev_owner_id={token.prev_owner_id}')
+        message = None
+        if mode == TokenMode.LOCK:
+            message = f'トークン（{token}）を取得しました'
+        elif mode == TokenMode.RELEASE:
+            message = f'トークン（{token}）を解放しました'
+        elif mode == TokenMode.SUSPEND:
+            message = f'トークン（{token}）の解放を待機します'
+        elif mode == TokenMode.RESUME:
+            message = f'トークン（{token}）が解放されました'
+        if message:
+            MongoMessage.write(const.REVERSE_ID_TABLE[ui_id], MessageType.Token, message)
 
     def _take_refuge(self, robot_id, waiting_route):
         places = RobotNotificationAPI.waypoint().get_places([flatten([waiting_route['via'], waiting_route['to']])])

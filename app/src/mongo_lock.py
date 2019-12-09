@@ -39,24 +39,4 @@ class MongoThrottling:
 
     @classmethod
     def lock(cls, robot_id, time):
-        # lock = cls._get_mongo_collection().find_one_and_update(
-        #     {
-        #         'robot_id': robot_id,
-        #         'time': {
-        #             '$lte': time - cls._throttling()
-        #         },
-        #     },
-        #     {
-        #         '$set': {
-        #             'time': time
-        #         }
-        #     }
-        # )
-        # if lock is None:
-        #     msg = f'ignore notification, robot_id={robot_id}, time={time.isoformat()}, ' \
-        #         f'timedelta lower than the throttling={cls._throttling()}'
-        #     raise MongoLockError(msg)
-        #
-        # logger.debug(f'update last_processed_time, robot_id={robot_id}, old={lock["time"].isoformat()}, new={time.isoformat()}')
-        # return lock
         return None

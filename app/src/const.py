@@ -54,3 +54,5 @@ TARGET_HANDLERS = ['console', ]
 
 # etcd_lock
 DEFAULT_LOCK_TIMEOUT_SEC = 600
+
+REVERSE_ID_TABLE = {v: k for k, v in ID_TABLE.items()}
