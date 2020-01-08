@@ -23,21 +23,21 @@ MONGODB_COLLECTION_NAME = 'MONGODB_COLLECTION_NAME'
 
 @pytest.fixture(scope='function')
 def setup_environments():
-    os.environ[ORION_ENDPOINT] = 'dummy'
-    os.environ[FIWARE_SERVICE] = 'dummy'
-    os.environ[DELIVERY_ROBOT_SERVICEPATH] = 'dummy'
-    os.environ[DELIVERY_ROBOT_TYPE] = 'dummy'
-    os.environ[DELIVERY_ROBOT_LIST] = '[]'
-    os.environ[ROBOT_UI_SERVICEPATH] = 'dummy'
-    os.environ[ROBOT_UI_TYPE] = 'dummy'
-    os.environ[ID_TABLE] = '{}'
-    os.environ[TOKEN_SERVICEPATH] = 'dummy'
-    os.environ[TOKEN_TYPE] = 'dummy'
-    os.environ[MONGODB_HOST] = 'dummy'
-    os.environ[MONGODB_PORT] = '0'
-    os.environ[MONGODB_REPLICASET] = 'dummy'
-    os.environ[MONGODB_DB_NAME] = 'dummy'
-    os.environ[MONGODB_COLLECTION_NAME] = 'dummy'
+    os.environ[ORION_ENDPOINT] = 'ORION_ENDPOINT'
+    os.environ[FIWARE_SERVICE] = 'FIWARE_SERVICE'
+    os.environ[DELIVERY_ROBOT_SERVICEPATH] = 'DELIVERY_ROBOT_SERVICEPATH'
+    os.environ[DELIVERY_ROBOT_TYPE] = 'DELIVERY_ROBOT_TYPE'
+    os.environ[DELIVERY_ROBOT_LIST] = '["robot_01", "robot_02"]'
+    os.environ[ROBOT_UI_SERVICEPATH] = 'ROBOT_UI_SERVICEPATH'
+    os.environ[ROBOT_UI_TYPE] = 'ROBOT_UI_TYPE'
+    os.environ[ID_TABLE] = '{"robot_01": "ui_01", "robot_02": "ui_02"}'
+    os.environ[TOKEN_SERVICEPATH] = 'TOKEN_SERVICEPATH'
+    os.environ[TOKEN_TYPE] = 'TOKEN_TYPE'
+    os.environ[MONGODB_HOST] = 'MONGODB_HOST'
+    os.environ[MONGODB_PORT] = '27017'
+    os.environ[MONGODB_REPLICASET] = 'MONGODB_REPLICASET'
+    os.environ[MONGODB_DB_NAME] = 'MONGODB_DB_NAME'
+    os.environ[MONGODB_COLLECTION_NAME] = 'MONGODB_COLLECTION_NAME'
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -81,3 +81,9 @@ def app():
     main = lazy_import.lazy_module('main')
     yield main.app
     importlib.reload(main)
+
+
+@pytest.fixture
+def const():
+    const = lazy_import.lazy_module('src.const')
+    return const

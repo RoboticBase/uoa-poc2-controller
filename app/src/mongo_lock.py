@@ -39,6 +39,9 @@ class MongoThrottling:
 
     @classmethod
     def lock(cls, robot_id, time):
+        if not isinstance(robot_id, str):
+            raise TypeError(f'invalid type of robot_id, type(robot_id)={type(robot_id)}')
+
         lock = cls._get_mongo_collection().find_one_and_update(
             {
                 'robot_id': robot_id,
