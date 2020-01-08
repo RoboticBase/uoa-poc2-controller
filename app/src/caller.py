@@ -9,7 +9,7 @@ class Caller(Enum):
 
     @classmethod
     def get(cls, shipment_list):
-        if 'caller' in shipment_list and shipment_list['caller'] in const.ORDERING_LIST:
+        if isinstance(shipment_list, dict) and 'caller' in shipment_list and shipment_list['caller'] in const.ORDERING_LIST:
             return Caller.ORDERING
         else:
             return Caller.WAREHOUSE
