@@ -9,6 +9,7 @@ pytest = "*"
 pytest-cov = "*"
 pytest-mock = "*"
 lazy-import = "*"
+freezegun = "*"
 
 [packages]
 flask = "~=1.0.0"
