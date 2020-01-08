@@ -1,6 +1,8 @@
 import os
+import importlib
 
 import pytest
+import lazy_import
 
 ORION_ENDPOINT = 'ORION_ENDPOINT'
 FIWARE_SERVICE = 'FIWARE_SERVICE'
@@ -72,3 +74,10 @@ def teardown_enviroments():
         del os.environ[MONGODB_DB_NAME]
     if MONGODB_COLLECTION_NAME in os.environ:
         del os.environ[MONGODB_COLLECTION_NAME]
+
+
+@pytest.fixture
+def app():
+    main = lazy_import.lazy_module('main')
+    yield main.app
+    importlib.reload(main)
