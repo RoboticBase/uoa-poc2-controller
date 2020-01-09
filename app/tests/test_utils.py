@@ -1,4 +1,6 @@
-from src.utils import flatten
+import datetime
+
+from src.utils import flatten, is_jsonable
 
 import pytest
 
@@ -45,3 +47,24 @@ class TestFlatten:
     def test_exception(self, target, expected):
         with pytest.raises(expected):
             flatten(target)
+
+
+class TestIsJsonable:
+
+    @pytest.mark.parametrize('target, expected', [
+        ({'test': 'dummy', 'None': None}, True),
+        ({'test': {'nested': [1, 2.0, '3']}}, True),
+        ({}, True),
+        ([1, 1.2e-2, 'a', True, {'a': 'b'}, None], True),
+        ([], True),
+        ('dummy', True),
+        (1, True),
+        (0.5, True),
+        (False, True),
+        (tuple([1, 2]), True),
+        (None, True),
+        (datetime.datetime.utcnow(), False),
+        (set([1, 2, 1]), False),
+    ])
+    def test_is_jsonable(self, target, expected):
+        assert is_jsonable(target) == expected
