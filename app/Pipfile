@@ -21,7 +21,7 @@ pymongo = "*"
 
 [scripts]
 lint = "flake8"
-unittest = "pytest --cov=src --cov-report=term-missing"
+unittest = "pytest --cov=src --cov-branch --cov-report=term-missing"
 
 [requires]
 python_version = "3.7"
