@@ -11,9 +11,9 @@ import requests
 from src import const
 from src.utils import is_jsonable
 from src.caller import Caller
-from src.token import Token, TokenMode
 
 TZ = pytz.timezone(const.TIMEZONE)
+
 
 def send_command(fiware_service, fiware_servicepath, entity_type, entity_id, payload):
     if not (isinstance(fiware_service, str) and isinstance(fiware_servicepath, str)
@@ -270,7 +270,8 @@ def make_robotui_sendstate_command(next_state, destination):
 
 
 def make_robotui_sendtokeninfo_command(token, mode):
-    if not (isinstance(token, Token) and isinstance(mode, TokenMode)):
+    import src.token
+    if not (isinstance(token, src.token.Token) and isinstance(mode, src.token.TokenMode)):
         raise TypeError('invalid token or mode')
 
     t = datetime.datetime.now(TZ).isoformat(timespec='milliseconds')
