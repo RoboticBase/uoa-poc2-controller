@@ -19,6 +19,8 @@ MONGODB_PORT = 'MONGODB_PORT'
 MONGODB_REPLICASET = 'MONGODB_REPLICASET'
 MONGODB_DB_NAME = 'MONGODB_DB_NAME'
 MONGODB_COLLECTION_NAME = 'MONGODB_COLLECTION_NAME'
+TIMEZONE = 'TIMEZONE'
+ORION_TOKEN = 'ORION_TOKEN'
 
 
 @pytest.fixture(scope='function')
@@ -74,6 +76,10 @@ def teardown_enviroments():
         del os.environ[MONGODB_DB_NAME]
     if MONGODB_COLLECTION_NAME in os.environ:
         del os.environ[MONGODB_COLLECTION_NAME]
+    if TIMEZONE in os.environ:
+        del os.environ[TIMEZONE]
+    if ORION_TOKEN in os.environ:
+        del os.environ[ORION_TOKEN]
 
 
 @pytest.fixture
