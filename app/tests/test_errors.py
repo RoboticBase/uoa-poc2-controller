@@ -34,7 +34,7 @@ class TestErrorHandler:
         assert response.status_code == 200
         assert response.json == {'result': 'success'}
         assert errors.logger.error.call_count == 0
-        assert errors.logger.warn.call_count == 0
+        assert errors.logger.warning.call_count == 0
 
     @pytest.mark.parametrize('exception, expected_json, logger_args', [
         (Exception(), {}, ('',)),
@@ -53,7 +53,7 @@ class TestErrorHandler:
         assert response.json == expected_json
         assert errors.logger.error.call_count == 1
         assert errors.logger.error.call_args[0] == logger_args
-        assert errors.logger.warn.call_count == 0
+        assert errors.logger.warning.call_count == 0
 
     @pytest.mark.parametrize('status_code, description, expected_json, logger_args', [
         (
@@ -104,8 +104,8 @@ class TestErrorHandler:
         assert response.status_code == status_code
         assert response.json == expected_json
         assert errors.logger.error.call_count == 0
-        assert errors.logger.warn.call_count == 1
-        assert errors.logger.warn.call_args[0] == logger_args
+        assert errors.logger.warning.call_count == 1
+        assert errors.logger.warning.call_args[0] == logger_args
 
     @pytest.mark.parametrize('status_code, description, expected_json, logger_args', [
         (
@@ -129,4 +129,4 @@ class TestErrorHandler:
         assert response.json == expected_json
         assert errors.logger.error.call_count == 1
         assert errors.logger.error.call_args[0] == logger_args
-        assert errors.logger.warn.call_count == 0
+        assert errors.logger.warning.call_count == 0

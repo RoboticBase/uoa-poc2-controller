@@ -23,7 +23,7 @@ def error_handler(error):
     if code >= 500:
         level = 'error'
     else:
-        level = 'warn'
+        level = 'warning'
     getattr(logger, level)(str(error))
 
     return make_response(jsonify(description), code)
