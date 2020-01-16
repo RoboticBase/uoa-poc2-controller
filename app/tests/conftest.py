@@ -21,6 +21,8 @@ MONGODB_DB_NAME = 'MONGODB_DB_NAME'
 MONGODB_COLLECTION_NAME = 'MONGODB_COLLECTION_NAME'
 TIMEZONE = 'TIMEZONE'
 ORION_TOKEN = 'ORION_TOKEN'
+MOVENEXT_WAIT_MSEC = 'MOVENEXT_WAIT_MSEC'
+MOVENEXT_WAIT_MAX_NUM = 'MOVENEXT_WAIT_MAX_NUM'
 
 
 @pytest.fixture(scope='function')
@@ -40,6 +42,8 @@ def setup_environments():
     os.environ[MONGODB_REPLICASET] = 'MONGODB_REPLICASET'
     os.environ[MONGODB_DB_NAME] = 'MONGODB_DB_NAME'
     os.environ[MONGODB_COLLECTION_NAME] = 'MONGODB_COLLECTION_NAME'
+    os.environ[MOVENEXT_WAIT_MSEC] = '10'
+    os.environ[MOVENEXT_WAIT_MAX_NUM] = '3'
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -80,6 +84,10 @@ def teardown_enviroments():
         del os.environ[TIMEZONE]
     if ORION_TOKEN in os.environ:
         del os.environ[ORION_TOKEN]
+    if MOVENEXT_WAIT_MSEC in os.environ:
+        del os.environ[MOVENEXT_WAIT_MSEC]
+    if MOVENEXT_WAIT_MAX_NUM in os.environ:
+        del os.environ[MOVENEXT_WAIT_MAX_NUM]
 
 
 @pytest.fixture
