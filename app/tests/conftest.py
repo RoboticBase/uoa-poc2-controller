@@ -25,7 +25,7 @@ MOVENEXT_WAIT_MSEC = 'MOVENEXT_WAIT_MSEC'
 MOVENEXT_WAIT_MAX_NUM = 'MOVENEXT_WAIT_MAX_NUM'
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='function', autouse=True)
 def setup_environments():
     os.environ[ORION_ENDPOINT] = 'ORION_ENDPOINT'
     os.environ[FIWARE_SERVICE] = 'FIWARE_SERVICE'
@@ -95,9 +95,3 @@ def app():
     main = lazy_import.lazy_module('main')
     yield main.app
     importlib.reload(main)
-
-
-@pytest.fixture
-def const():
-    const = lazy_import.lazy_module('src.const')
-    return const

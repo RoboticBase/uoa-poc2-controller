@@ -15,7 +15,6 @@ def mocked_waypoint(mocker):
     yield waypoint
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestEstimateRoute:
     def return_value_of_query_entity(self, result_places, result_routes, result_source, qc):
         def _result(fs, fsp, t, q):

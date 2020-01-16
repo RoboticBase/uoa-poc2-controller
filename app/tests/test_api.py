@@ -22,7 +22,6 @@ def mocked_api(mocker):
     importlib.reload(api)
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestShipmentAPI:
 
     @pytest.mark.parametrize('robot_data, available_robot_id, called_robot_id', [
@@ -674,7 +673,6 @@ class TestShipmentAPI:
         assert mocked_api.MongoThrottling.lock.call_count == 0
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestRobotStateAPI:
 
     @pytest.mark.parametrize('navigation_waypoints_value, place_name, call_count', [
@@ -984,7 +982,6 @@ class TestRobotStateAPI:
         assert mocked_api.MongoThrottling.lock.call_count == 0
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestMoveNextAPI:
 
     @pytest.mark.parametrize('mode', [
@@ -1531,7 +1528,6 @@ class TestMoveNextAPI:
         assert mocked_api.MongoThrottling.lock.call_count == 0
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestEmergencyAPI:
 
     def test_success(self, app, mocked_api):
@@ -1566,7 +1562,6 @@ class TestEmergencyAPI:
         assert mocked_api.MongoThrottling.lock.call_count == 0
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestRobotNotificationAPI:
 
     def test_moving_to_moving(self, app, mocked_api):

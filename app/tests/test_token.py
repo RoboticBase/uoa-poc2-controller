@@ -17,7 +17,6 @@ def mocked_token(mocker):
     importlib.reload(token)
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestInit:
 
     def test_init(self, mocked_token):
@@ -130,7 +129,6 @@ class TestInit:
         assert mocked_token.orion.send_command.call_count == 0
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestGetLock:
 
     @pytest.mark.parametrize('loi, w, robot_id', [
@@ -254,7 +252,6 @@ class TestGetLock:
             assert mocked_token.orion.send_command.call_count == 0
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestReleaseLock:
 
     @pytest.mark.parametrize('is_locked, loi', [

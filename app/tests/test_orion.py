@@ -35,7 +35,7 @@ def reload_module():
     yield
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestSendCommand:
 
     @pytest.mark.parametrize('payload', [
@@ -196,7 +196,7 @@ class TestSendCommand:
         assert str(e.value) == 'payload must be json serializable'
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestQueryEntity:
 
     @pytest.mark.parametrize('env_token, expected_token', [
@@ -404,7 +404,7 @@ class TestQueryEntity:
         assert str(e.value) == 'fiware_service, fiware_servicepath, entity_type and query must be "str"'
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestGetEntities:
 
     @pytest.mark.parametrize('env_token, expected_token', [
@@ -567,7 +567,7 @@ class TestGetEntities:
         assert str(e.value) == 'fiware_service, fiware_servicepath and entity_type must be "str"'
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestGetEntity:
 
     @pytest.mark.parametrize('env_token, expected_token', [
@@ -730,7 +730,7 @@ class TestGetEntity:
         assert str(e.value) == 'fiware_service, fiware_servicepath, entity_type and entity_id must be "str"'
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeDeliveryRobotCommand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -858,7 +858,7 @@ class TestMakeDeliveryRobotCommand:
                            if v['value'] is not None or k == 'navigating_waypoints'}
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeEmergencyCommand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -908,7 +908,7 @@ class TestMakeEmergencyCommand:
         }
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeUpdateModeCommmand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -964,7 +964,7 @@ class TestMakeUpdateModeCommmand:
         }
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeUpdateStateCommmand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -1020,7 +1020,7 @@ class TestMakeUpdateStateCommmand:
         }
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeRobotuiSendstateCommand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -1082,7 +1082,7 @@ class TestMakeRobotuiSendstateCommand:
         }
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeRobotuiSendtokeninfoCommand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -1173,7 +1173,7 @@ class TestMakeRobotuiSendtokeninfoCommand:
         assert str(e.value) == 'invalid token or mode'
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeTokenInfoCommand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [
@@ -1282,7 +1282,7 @@ class TestMakeTokenInfoCommand:
         }
 
 
-@pytest.mark.usefixtures('setup_environments', 'reload_module')
+@pytest.mark.usefixtures('reload_module')
 class TestMakeUpdatelastprocessedtimeCommand:
 
     @pytest.mark.parametrize('timezone, expected_datetime', [

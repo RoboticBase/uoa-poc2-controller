@@ -3,7 +3,6 @@ import lazy_import
 caller = lazy_import.lazy_module('src.caller')
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestCaller:
 
     def test_str(self):

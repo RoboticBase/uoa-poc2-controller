@@ -20,7 +20,6 @@ class DummyException(Exception):
         self.description = {'msg': args[0]}
 
 
-@pytest.mark.usefixtures('setup_environments')
 class TestErrorHandler:
 
     def test_success(self, mocker, app, errors):
