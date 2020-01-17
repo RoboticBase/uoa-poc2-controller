@@ -75,7 +75,6 @@ def get_entities(fiware_service, fiware_servicepath, entity_type):
     if not (isinstance(fiware_service, str) and isinstance(fiware_servicepath, str) and isinstance(entity_type, str)):
         raise TypeError('fiware_service, fiware_servicepath and entity_type must be "str"')
 
-
     headers = __make_headers(fiware_service, fiware_servicepath)
     endpoint = f'{const.ORION_ENDPOINT}{const.ORION_BASE_PATH}'
     params = {
