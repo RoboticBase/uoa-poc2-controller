@@ -1,4 +1,3 @@
-import datetime
 from time import sleep
 from logging import getLogger
 
@@ -130,7 +129,8 @@ class CommonMixin:
                    remaining_waypoints_list=None, current_routes=None, order=None, caller=None):
 
         def _move(cmd):
-            payload = orion.make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints, remaining_waypoints_list, current_routes, order, caller)
+            payload = orion.make_delivery_robot_command(cmd, cmd_waypoints, navigating_waypoints,
+                                                        remaining_waypoints_list, current_routes, order, caller)
             orion.send_command(
                 const.FIWARE_SERVICE,
                 const.DELIVERY_ROBOT_SERVICEPATH,
@@ -151,7 +151,8 @@ class CommonMixin:
                     break
                 sleep(const.MOVENEXT_WAIT_MSEC / 1000.0)
             else:
-                msg = f'send_cmd_status still pending, robot_id={robot_id}, wait_msec={const.MOVENEXT_WAIT_MSEC}, wait_count={cnt}'
+                msg = f'send_cmd_status still pending, robot_id={robot_id}, ' \
+                    f'wait_msec={const.MOVENEXT_WAIT_MSEC}, wait_count={cnt}'
                 logger.error(msg)
                 abort(500, {
                     'message': msg
@@ -305,7 +306,8 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     const.DELIVERY_ROBOT_TYPE,
                     robot_id,
                     payload)
-                logger.debug(f'update robot last_processed_time, robot_id={robot_id}, time={time}')
+                logger.debug(f'update robot last_processed_time, robot_id={robot_id}, '
+                             f'time={time}, last_processed_time={last_processed_time}')
 
                 if next_mode != current_mode:
                     payload = orion.make_updatemode_command(next_mode)
