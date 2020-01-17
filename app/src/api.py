@@ -81,7 +81,8 @@ class CommonMixin:
             navigating_waypoints = robot_entity['navigating_waypoints']['value']
             order = robot_entity['order']['value']
 
-            if not isinstance(navigating_waypoints, dict) or not navigating_waypoints:
+            if not (isinstance(navigating_waypoints, dict) and 'to' in navigating_waypoints and isinstance(order, dict)
+                    and 'source' in order and 'destination' in order and 'via' in order and isinstance(order['via'], list)):
                 return const.STATE_STANDBY
             else:
                 to = navigating_waypoints['to']
@@ -92,7 +93,7 @@ class CommonMixin:
                         caller = Caller.value_of(robot_entity['caller']['value'])
                         return const.STATE_DELIVERING if caller == Caller.ORDERING else const.STATE_PICKING
                     except ValueError as e:
-                        logger.warn(f'unkown caller (estimate "state" as const.STATE_PICKING), {e}')
+                        logger.warning(f'unkown caller (estimate "state" as const.STATE_PICKING), {e}')
                         return const.STATE_PICKING
                 elif to in order['via']:
                     return const.STATE_PICKING
@@ -105,7 +106,7 @@ class CommonMixin:
             const.DELIVERY_ROBOT_SERVICEPATH,
             const.DELIVERY_ROBOT_TYPE,
             robot_id)['navigating_waypoints']['value']
-        if not isinstance(navigating_waypoints, dict) or not navigating_waypoints:
+        if not isinstance(navigating_waypoints, dict) or 'destination' not in navigating_waypoints:
             return ''
         else:
             return navigating_waypoints['destination']
@@ -120,6 +121,9 @@ class CommonMixin:
             const.DELIVERY_ROBOT_SERVICEPATH,
             const.PLACE_TYPE,
             navigating_waypoints_to)
+        if not isinstance(destination, dict) or 'name' not in destination:
+            return ''
+
         return destination['name']['value']
 
     def move_robot(self, robot_id, cmd_waypoints, navigating_waypoints,
@@ -154,14 +158,14 @@ class CommonMixin:
                 })
 
             cmd_info = robot_entity['send_cmd_info']['value']
-            if 'result' not in cmd_info:
+            if not (isinstance(cmd_info, dict) and 'result' in cmd_info):
                 msg = f'invalid send_cmd_info, {cmd_info}'
                 logger.error(msg)
                 abort(500, {
                     'message': msg,
                 })
             if cmd_info['result'] not in ['ack', 'ignore']:
-                msg = f'move robot error, robot_id={robot_id}, errors={cmd_info["errors"]}'
+                msg = f'move robot error, robot_id={robot_id}, errors="{cmd_info["errors"] if "errors" in cmd_info else ""}"'
                 logger.error(msg)
                 abort(500, {
                     'message': msg,
@@ -174,7 +178,7 @@ class CommonMixin:
             result2 = _move('refresh')
             logger.info(f'send "refresh" command to robot({robot_id}), result={result2}')
             if result2 != 'ack':
-                msg = f'cannot move robot({robot_id}) to "{navigation_waypoints["to"]}" using "navi" and "refresh", ' \
+                msg = f'cannot move robot({robot_id}) to "{navigating_waypoints["to"]}" using "navi" and "refresh", ' \
                     f'navi result={result} refresh result={result2}'
                 logger.error(msg)
                 abort(500, {
@@ -215,6 +219,10 @@ class ShipmentAPI(CommonMixin, MethodView):
         caller = Caller.get(shipment_list)
 
         routes, waypoints_list, order = ShipmentAPI.waypoint().estimate_routes(shipment_list, available_robot['id'])
+        if not(isinstance(waypoints_list, list) and len(waypoints_list) > 0):
+            return jsonify({'result': 'ignore',
+                            'message': 'no available waypoints_list'}), 200
+
         head, *tail = waypoints_list
 
         self.move_robot(available_robot['id'], head['waypoints'], head, tail, routes, order, caller)
@@ -317,7 +325,7 @@ class RobotNotificationAPI(CommonMixin, MethodView):
                     logger.debug(f'ignore notification, next_mode={next_mode} current_mode={current_mode}')
                     ignored_data.append(data)
             except MongoLockError as e:
-                logger.warn(str(e))
+                logger.warning(str(e))
                 ignored_data.append(data)
 
         logger.debug(f'processed_data = {processed_data}, ignored_data = {ignored_data}')
@@ -327,7 +335,10 @@ class RobotNotificationAPI(CommonMixin, MethodView):
         if next_mode == const.MODE_STANDBY:
             nws = robot_entity['navigating_waypoints']['value']
 
-            if isinstance(nws, dict) and nws and 'action' in nws and 'func' in nws['action'] and nws['action']['func']:
+            if isinstance(nws, dict) and nws and 'action' in nws \
+                    and 'func' in nws['action'] and nws['action']['func'] \
+                    and 'token' in nws['action'] and nws['action']['token'] and isinstance(nws['action']['token'], str) \
+                    and 'waiting_route' in nws['action']:
                 func = nws['action']['func']
                 token = Token.get(nws['action']['token'])
                 waiting_route = nws['action']['waiting_route']
@@ -397,6 +408,5 @@ class RobotNotificationAPI(CommonMixin, MethodView):
             },
             'waypoints': waypoints,
         }
-
         self.move_robot(robot_id, waypoints, navigating_waypoints)
         logger.info(f'take refuge a robot({robot_id}) in "{waiting_route["to"]}"')

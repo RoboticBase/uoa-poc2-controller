@@ -11,11 +11,15 @@ class Token:
 
     @classmethod
     def get(cls, token):
+        if not isinstance(token, str):
+            raise TypeError('token must be "str"')
         if token not in cls._tokens:
             cls._tokens[token] = cls(token)
         return cls._tokens[token]
 
     def __init__(self, token):
+        if not isinstance(token, str):
+            raise TypeError('token must be "str"')
         self._token = token
         self._entity = None
         self.is_locked = False

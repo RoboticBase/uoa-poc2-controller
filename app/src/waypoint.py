@@ -8,6 +8,15 @@ logger = getLogger(__name__)
 
 class Waypoint:
     def estimate_routes(self, shipment_list, robot_id):
+        if not ('destination' in shipment_list and 'name' in shipment_list['destination']
+                and isinstance(shipment_list['destination']['name'], str)
+                and 'updated' in shipment_list and isinstance(shipment_list['updated'], list)
+                and all('place' in v for v in shipment_list['updated'])
+                and all(isinstance(v['place'], str) for v in shipment_list['updated'])):
+            raise TypeError('invalid shipment_list')
+        if not isinstance(robot_id, str):
+            raise TypeError('invalid robot_id')
+
         logger.info(f'shipment_list = {shipment_list}')
 
         destination = orion.query_entity(
@@ -21,7 +30,7 @@ class Waypoint:
             const.FIWARE_SERVICE,
             const.DELIVERY_ROBOT_SERVICEPATH,
             const.PLACE_TYPE,
-            f'name=={v}')['id'] for v in via_name_list]
+            f'name=={v}')['id'] for v in sorted(via_name_list)]
         via = const.VIA_SEPARATOR.join(sorted(via_list))
 
         route_plan = orion.query_entity(

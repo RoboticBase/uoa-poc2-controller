@@ -5,6 +5,11 @@ verify_ssl = true
 
 [dev-packages]
 flake8 = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+lazy-import = "*"
+freezegun = "*"
 
 [packages]
 flask = "~=1.0.0"
@@ -13,6 +18,10 @@ pytz = "~=2019.1"
 flask-cors = "*"
 python-dateutil = "*"
 pymongo = "*"
+
+[scripts]
+lint = "flake8"
+unittest = "pytest --cov=src --cov-branch --cov-report=term-missing"
 
 [requires]
 python_version = "3.7"
